@@ -196,7 +196,7 @@ class OhemCrossEntropy2dTensor(nn.Module):
 
         prob = F.softmax(pred, dim=1)
         prob = (prob.transpose(0, 1)).reshape(c, -1)
-
+        # import pdb; pdb.set_trace()
         if self.min_kept > num_valid:
             pass
             #print('Labels: {}'.format(num_valid))
@@ -218,3 +218,54 @@ class OhemCrossEntropy2dTensor(nn.Module):
         target = target.view(b, h, w)
 
         return self.criterion(pred, target)
+
+
+class OhemCrossEntropy(nn.Module):
+    """Ohem cross entropy
+    Args:
+        ignore_label (int): ignore label
+        thres (float): maximum probability of prediction to be ignored
+        min_kept (int): maximum number of pixels to be consider to compute loss
+        weight (torch.Tensor): weight for cross entropy loss
+    """
+
+    def __init__(self, ignore_label=255, thres=0.7, min_kept=256, weight=torch.FloatTensor(
+                [0.8373, 0.918, 0.866, 1.0345, 1.0166, 0.9969, 0.9754, 1.0489,
+                 0.8786, 1.0023, 0.9539, 0.9843, 1.1116, 0.9037, 1.0865, 1.0955,
+                 1.0865, 1.1529, 1.0507]).cuda()):
+        super(OhemCrossEntropy, self).__init__()
+        self.thresh = thres
+        self.min_kept = max(1, min_kept)
+        self.ignore_label = ignore_label
+        self.criterion = nn.CrossEntropyLoss(weight=None, ignore_index=ignore_label, reduction="none")
+        # nn.CrossEntropyLoss(weight=None, ignore_index=255, reduction="none")
+
+    def forward(self, score, target, **kwargs):
+        
+        ph, pw = score.size(2), score.size(3)
+        h, w = target.size(1), target.size(2)
+        if ph != h or pw != w:
+            score = F.upsample(input=score, size=(h, w), mode="bilinear", align_corners=False)
+
+        pred = F.softmax(score, dim=1)
+        
+        pixel_losses = self.criterion(score, target).contiguous().view(-1)
+        mask = target.contiguous().view(-1) != self.ignore_label
+
+        tmp_target = target.clone()
+        tmp_target[tmp_target == self.ignore_label] = 0
+        pred = pred.gather(1, tmp_target.unsqueeze(1))
+        pred, ind = (
+            pred.contiguous()
+            .view(
+                -1,
+            )[mask]
+            .contiguous()
+            .sort()
+        )
+        min_value = pred[min(self.min_kept, pred.numel() - 1)]
+        threshold = max(min_value, self.thresh)
+
+        pixel_losses = pixel_losses[mask][ind]
+        pixel_losses = pixel_losses[pred < threshold]
+        return pixel_losses.mean()

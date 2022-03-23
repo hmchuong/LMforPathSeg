@@ -124,7 +124,10 @@ def main():
 
 def train(model, optimizer, lr_scheduler, criterion, data_loader, epoch):
     model.train()
-    data_loader.sampler.set_epoch(epoch)
+    try:
+        data_loader.sampler.set_epoch(epoch)
+    except:
+        pass
     num_classes, ignore_label = cfg['net']['num_classes'], cfg['dataset']['ignore_label']
     rank, world_size = get_rank(), get_world_size()
 
@@ -143,6 +146,7 @@ def train(model, optimizer, lr_scheduler, criterion, data_loader, epoch):
         labels = labels.long().cuda()
 
         preds = model(images)
+        # import pdb; pdb.set_trace()
         contrast_loss = preds[-1] / world_size
         loss = criterion(preds[:-1], labels) / world_size
         loss += cfg['criterion']['contrast_weight']*contrast_loss

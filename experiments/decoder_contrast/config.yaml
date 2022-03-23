@@ -1,8 +1,8 @@
 dataset: # Required.
   type: cityscapes
   train:
-    data_root: /path/to/cityscapes
-    data_list: /path/to/cityscapes/fine_train.txt
+    data_root: /home/ubuntu/HRNet-Semantic-Segmentation/data/cityscapes
+    data_list: /home/ubuntu/HRNet-Semantic-Segmentation/data/list/cityscapes/train.lst
     flip: True
     GaussianBlur: False
     rand_resize: [0.5, 2.0]
@@ -11,12 +11,12 @@ dataset: # Required.
       type: rand
       size: [769, 769] # crop image with HxW size
   val:
-    data_root: /path/to/cityscapes
-    data_list: /path/to/cityscapes/fine_val.txt
+    data_root: /home/ubuntu/HRNet-Semantic-Segmentation/data/cityscapes
+    data_list: /home/ubuntu/HRNet-Semantic-Segmentation/data/list/cityscapes/val.lst
     crop:
       type: center
       size: [769, 769] # crop image with HxW size
-  batch_size: 1
+  batch_size: 2
   workers: 2
   mean: [123.675, 116.28, 103.53]
   std: [58.395, 57.12, 57.375]
@@ -50,7 +50,7 @@ criterion:
 
 net: # Required.
   num_classes: 19
-  sync_bn: True
+  sync_bn: False
   aux_loss:
     aux_plane: 1024
     loss_weight: 0.4
