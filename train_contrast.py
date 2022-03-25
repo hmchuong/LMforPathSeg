@@ -167,9 +167,9 @@ def train(model, optimizer, lr_scheduler, criterion, data_loader, epoch):
         reduced_union = torch.from_numpy(union).cuda()
         reduced_target = torch.from_numpy(target).cuda()
 
-        dist.all_reduce(reduced_intersection)
-        dist.all_reduce(reduced_union)
-        dist.all_reduce(reduced_target)
+        # dist.all_reduce(reduced_intersection)
+        # dist.all_reduce(reduced_union)
+        # dist.all_reduce(reduced_target)
 
         intersection_meter.update(reduced_intersection.cpu().numpy())
         union_meter.update(reduced_union.cpu().numpy())
@@ -177,7 +177,7 @@ def train(model, optimizer, lr_scheduler, criterion, data_loader, epoch):
 
         # gather all loss from different gpus
         reduced_loss = loss.clone()
-        dist.all_reduce(reduced_loss)
+        # dist.all_reduce(reduced_loss)
         #print('rank,reduced_loss',rank,reduced_loss)
         losses.update(reduced_loss.item())
 
