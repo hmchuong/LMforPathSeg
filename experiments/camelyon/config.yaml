@@ -1,8 +1,8 @@
 dataset: # Required.
   type: camelyon
   train:
-    data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16
-    data_list: /should/be/in/data_root/data.csv
+    data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/Camelyon16/tumor_015
+    data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/Camelyon16/tumor_015/data.csv
     flip: True
     GaussianBlur: False
     rand_resize: [0.5, 2.0]
@@ -11,8 +11,8 @@ dataset: # Required.
       type: rand
       size: [256, 256] # crop image with HxW size
   val:
-    data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16
-    data_list: /should/be/in/data_root/data.csv
+    data_root:  /fs/class-projects/spring2022/cmsc828l/c828lg001/Camelyon16/tumor_034
+    data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/Camelyon16/tumor_034/data.csv
     crop:
       type: center
       size: [256, 256] # crop image with HxW size

@@ -2,7 +2,6 @@ import glob
 import numpy as np
 import random
 from torch.utils.data import Dataset
-import torch
 from PIL import Image
 import PIL
 import copy
@@ -13,7 +12,6 @@ import cv2
 import os
 import h5py
 import pandas as pd
-import torch
 import torch.utils.data as data_utils
 import torch
 from torch.utils.data.distributed import DistributedSampler
@@ -83,7 +81,9 @@ class Camelyon16Dataset(data_utils.Dataset):
 
         self.X = images
         self.y = rles
-        self.path = os.path.join(path, "lamels")
+        # TODO: update the below line if needed later - not using the folder "lamels" for now
+        # self.path = os.path.join(path, "lamels")
+        self.path = os.path.join(path, "")
 
         print('Loaded {} dataset with {} samples'.format(mode, len(self.X)))
         print("# " * 50)
@@ -182,11 +182,18 @@ def build_camloader(split, all_cfg):
     trs_form = build_transfrom(cfg)
     dset = Camelyon16Dataset(cfg['data_root'], split, trs_form, cfg)
 
-    # build sampler
-    # sample = DistributedSampler(dset)
+    num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
+    distributed = num_gpus > 1
 
-    loader = DataLoader(dset, batch_size=batch_size, num_workers=workers,
-                        # sampler=sample,
-                        shuffle=False, pin_memory=False)
+    if distributed:
+        # build sampler
+        sample = DistributedSampler(dset)
+
+        loader = DataLoader(dset, batch_size=batch_size, num_workers=workers,
+                            sampler=sample,
+                            shuffle=False, pin_memory=False)
+    else:
+        loader = DataLoader(dset, batch_size=batch_size, num_workers=workers,
+                                shuffle=False, pin_memory=False)
 
     return loader
