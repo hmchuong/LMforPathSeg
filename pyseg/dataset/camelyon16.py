@@ -2,7 +2,6 @@ import glob
 import numpy as np
 import random
 from torch.utils.data import Dataset
-import torch
 from PIL import Image
 import PIL
 import copy
@@ -13,7 +12,6 @@ import cv2
 import os
 import h5py
 import pandas as pd
-import torch
 import torch.utils.data as data_utils
 import torch
 from torch.utils.data.distributed import DistributedSampler
