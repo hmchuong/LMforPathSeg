@@ -1,23 +1,25 @@
 dataset: # Required.
   type: camelyon
   train:
-    data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16
-    data_list: /should/be/in/data_root/data.csv
+    data_root: /fs/classhomes/spring2022/cmsc828l/c828l028/RegionContrast-Med/drive/Camelyon16
+    data_list: /fs/classhomes/spring2022/cmsc828l/c828l028/RegionContrast-Med/drive/Camelyon16/data.csv
     flip: True
     GaussianBlur: False
-    rand_resize: [0.5, 2.0]
-    #rand_rotation: [-10.0, 10.0]
-    crop:
-      type: rand
-      size: [256, 256] # crop image with HxW size
+    # rand_resize: [0.8, 1.2]
+    # rand_rotation: [-10.0, 10.0]
+    resize: [512, 512]
+    # crop:
+    #   type: rand
+    #   size: [512, 512] # crop image with HxW size
   val:
-    data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16
-    data_list: /should/be/in/data_root/data.csv
-    crop:
-      type: center
-      size: [256, 256] # crop image with HxW size
-  batch_size: 2
-  workers: 1
+    data_root: /fs/classhomes/spring2022/cmsc828l/c828l028/RegionContrast-Med/drive/Camelyon16
+    data_list: /fs/classhomes/spring2022/cmsc828l/c828l028/RegionContrast-Med/drive/Camelyon16/data.csv
+    resize: [512, 512]
+    # crop:
+    #   type: center
+    #   size: [256, 256] # crop image with HxW size
+  batch_size: 4
+  workers: 4
   mean: [0.845, 0.800, 0.820]
   std: [0.240, 0.277, 0.245]
   ignore_label: 255
