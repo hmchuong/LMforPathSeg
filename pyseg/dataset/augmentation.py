@@ -223,7 +223,7 @@ class RandRotate(object):
         angle = self.rotate[0] + (self.rotate[1] - self.rotate[0]) * random.random()
         M = cv2.getRotationMatrix2D((0, 0), angle, 1)
         t_M = torch.Tensor(M).unsqueeze(dim=0)
-        grid = F.affine_grid(t_M, image.size())
+        grid = F.affine_grid(t_M, image.size(), align_corners=False)
 
         image = F.grid_sample(image, grid, mode='bilinear', align_corners=False)
         label += 1

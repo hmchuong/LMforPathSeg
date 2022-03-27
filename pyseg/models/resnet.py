@@ -8,7 +8,7 @@ __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
 model_urls = {
     'resnet18': '/path/to/model_zoo/resnet18-5c106cde.pth',
     'resnet34': '/path/to/model_zoo/resnet34-333f7ec4.pth',
-    'resnet50': '/home/ubuntu/resnet50-ebb6acbb.pth',
+    'resnet50': '/fs/classhomes/spring2022/cmsc828l/c828l028/resnet50-ebb6acbb.pth',
     'resnet101': '/path/to/model_zoo/resnet101-2a57e44d.pth',
     'resnet152': '/path/to/model_zoo/resnet152-0d43d698.pth',
 }
@@ -258,7 +258,7 @@ def resnet34(pretrained=False, **kwargs):
     return model
 
 
-def resnet50(pretrained=False, **kwargs):
+def resnet50(pretrained=True, **kwargs):
     """Constructs a ResNet-50 model.
 
     Args:
@@ -269,7 +269,7 @@ def resnet50(pretrained=False, **kwargs):
         model.load_state_dict(torch.load(model_urls['resnet50'],map_location="cpu"), strict=False)
     return model
 
-def resnet50c(pretrained=False, **kwargs):
+def resnet50c(pretrained=True, **kwargs):
     """Constructs a ResNet-50 model.
 
     Args:
@@ -281,7 +281,7 @@ def resnet50c(pretrained=False, **kwargs):
     return model
 
 
-def resnet50d(pretrained=False, **kwargs):
+def resnet50d(pretrained=True, **kwargs):
     """Constructs a ResNet-50 model.
 
     Args:

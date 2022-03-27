@@ -23,6 +23,9 @@ from . import augmentation as psp_trsform
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
+from pyseg.utils.utils import init_log
+import logging
+logger =init_log('internal', logging.INFO)
 
 class Camelyon16Dataset(data_utils.Dataset):
 
@@ -39,7 +42,8 @@ class Camelyon16Dataset(data_utils.Dataset):
         df = pd.read_csv(path + '/data.csv')
 
         if mode == 'train':
-            df = df[df['filename_img'].str.count("^tumor_0(15|19)_.*") > 0]
+            # df = df[df['filename_img'].str.count("^tumor_0(15|19)_.*") > 0]
+            df = df[df['filename_img'].str.count("^tumor_019_.*") > 0]
             df = self.__filter_data(df, bin_counts=4, bin_ratio=[7, 1, 1, 1])
             images = df['filename_img'].to_numpy()
             rles = df['filename_rle'].to_numpy()
@@ -83,7 +87,7 @@ class Camelyon16Dataset(data_utils.Dataset):
 
         self.X = images
         self.y = rles
-        self.path = os.path.join(path, "lamels")
+        self.path = path#os.path.join(path, "lamels")
 
         print('Loaded {} dataset with {} samples'.format(mode, len(self.X)))
         print("# " * 50)
@@ -117,25 +121,31 @@ class Camelyon16Dataset(data_utils.Dataset):
         return data_balanced
 
     def __getitem__(self, idx):
-        image = Image.open(self.path + '/' + self.X[idx])
-        label = 1 if len(pd.read_pickle(self.path + '/' + self.y[idx])) else 0
-        rle = pd.read_pickle(self.path + '/' + self.y[idx])
-        mask = rle2mask(rle, (1024, 1024), tuple(self.cfg['train']['crop']['size']))
+        sub_dir = self.X[idx][:9]
+        path_dir = os.path.join(self.path, sub_dir)
+        # import time
+        
+        image = Image.open(path_dir + '/' + self.X[idx])
+        label = 1 if len(pd.read_pickle(path_dir + '/' + self.y[idx])) else 0
+        rle = pd.read_pickle(path_dir + '/' + self.y[idx])
+        mask = rle2mask(rle, (1024, 1024))
+        # start_time = time.time()
         transformed, mask = self.transform(np.asarray(image), mask)
+        # logger.info(time.time() - start_time)
         transformed = transformed.squeeze(0)
         mask = mask.squeeze()
         if self.return_image_rle:
             return {"pos": (self.test_df.iloc[idx]["x_index"], self.test_df.iloc[idx]["y_index"]),
                     "image": np.array(image.getdata()).reshape(image.size[0], image.size[1], 3),
                     "transformed": transformed, "label": label, "rle": rle, "filename_img": self.X[idx]}
-
+        
         return transformed, mask
 
     def __len__(self):
         return len(self.X)
 
 
-def rle2mask(rle, rle_shape, mask_shape):
+def rle2mask(rle, rle_shape):
     split_rle = rle.split()
     starts, lengths = [np.asarray(x, dtype=int) for x in (split_rle[0:][::2], split_rle[1:][::2])]
     starts -= 1
@@ -144,7 +154,8 @@ def rle2mask(rle, rle_shape, mask_shape):
     for start_point, end_point in zip(starts, ends):
         image[start_point:end_point] = 1
     image = image.reshape(rle_shape, order='F')  # Needed to align to RLE direction
-    return cv2.resize(image, mask_shape)
+    return image
+    # return cv2.resize(image, mask_shape)
 
 
 def build_transfrom(cfg):
@@ -182,11 +193,15 @@ def build_camloader(split, all_cfg):
     trs_form = build_transfrom(cfg)
     dset = Camelyon16Dataset(cfg['data_root'], split, trs_form, cfg)
 
+    num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
+    distributed = num_gpus > 1
     # build sampler
-    # sample = DistributedSampler(dset)
+    if distributed:
+        sample = DistributedSampler(dset)
 
-    loader = DataLoader(dset, batch_size=batch_size, num_workers=workers,
-                        # sampler=sample,
-                        shuffle=False, pin_memory=False)
-
+        loader = DataLoader(dset, batch_size=batch_size, num_workers=workers,
+                            sampler=sample, shuffle=False, pin_memory=False)
+    else:
+        
+        loader = DataLoader(dset, batch_size=batch_size, num_workers=workers, shuffle=(split == 'train'), pin_memory=False)
     return loader

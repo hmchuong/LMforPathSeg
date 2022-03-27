@@ -198,7 +198,10 @@ def train(model, optimizer, lr_scheduler, criterion, data_loader, epoch):
 
 def validate(model, data_loader, epoch):
     model.eval()
-    data_loader.sampler.set_epoch(epoch)
+    try:
+        data_loader.sampler.set_epoch(epoch)
+    except:
+        pass
 
     num_classes, ignore_label = cfg['net']['num_classes'], cfg['dataset']['ignore_label']
     
