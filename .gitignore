@@ -6,8 +6,11 @@ log/
 output/
 pretrained_models
 scripts/
+drive
+*.tar
 detail-api/
 data/list
 *_log.txt
+experiments/*/slurm_*
 experiments/*/log_*
 experiments/*/checkpoints/

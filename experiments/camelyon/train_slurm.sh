@@ -6,6 +6,11 @@
 #SBATCH --partition=class
 #SBATCH --account=class
 #SBATCH --qos=default
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --mem-per-cpu=4G
+#SBATCH --cpus-per-task=4
+
 
 module purge
 module load cuda/11.1.1

@@ -16,7 +16,7 @@ from pyseg.utils.loss_helper import get_criterion
 from pyseg.utils.lr_helper import get_scheduler, get_optimizer
 
 from pyseg.utils.utils import AverageMeter, intersectionAndUnion, init_log, load_trained_model
-from pyseg.utils.utils import set_random_seed, get_world_size, get_rank
+from pyseg.utils.utils import set_random_seed, get_world_size, get_rank, is_distributed
 from pyseg.dataset.builder import get_loader
 
 parser = argparse.ArgumentParser(description="Pytorch Semantic Segmentation")
@@ -36,9 +36,7 @@ def main():
     cudnn.enabled = True
     cudnn.benchmark = True
 
-    num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
-    distributed = num_gpus > 1
-    if distributed:
+    if is_distributed():
         torch.cuda.set_device(args.local_rank)
         torch.distributed.init_process_group(
             backend="nccl", init_method="env://"
@@ -62,7 +60,7 @@ def main():
    
     device = torch.device("cuda")
     model.to(device)
-    if distributed:
+    if is_distributed():
         model = torch.nn.parallel.DistributedDataParallel(
             model, device_ids=[args.local_rank], output_device=args.local_rank,
             # this should be removed if we update BatchNorm stats
@@ -163,13 +161,15 @@ def train(model, optimizer, lr_scheduler, criterion, data_loader, epoch):
         intersection, union, target = intersectionAndUnion(output, target, num_classes, ignore_label)
 
         # gather all validation information
+        
         reduced_intersection = torch.from_numpy(intersection).cuda()
         reduced_union = torch.from_numpy(union).cuda()
         reduced_target = torch.from_numpy(target).cuda()
-
-        # dist.all_reduce(reduced_intersection)
-        # dist.all_reduce(reduced_union)
-        # dist.all_reduce(reduced_target)
+        if is_distributed():
+            
+            dist.all_reduce(reduced_intersection)
+            dist.all_reduce(reduced_union)
+            dist.all_reduce(reduced_target)
 
         intersection_meter.update(reduced_intersection.cpu().numpy())
         union_meter.update(reduced_union.cpu().numpy())
@@ -177,15 +177,16 @@ def train(model, optimizer, lr_scheduler, criterion, data_loader, epoch):
 
         # gather all loss from different gpus
         reduced_loss = loss.clone()
-        # dist.all_reduce(reduced_loss)
+        if is_distributed():
+            dist.all_reduce(reduced_loss)
         #print('rank,reduced_loss',rank,reduced_loss)
         losses.update(reduced_loss.item())
 
         if i_iter % 50 == 0 and rank==0:
             iou_class = intersection_meter.sum / (union_meter.sum + 1e-10)
             accuracy_class = intersection_meter.sum / (target_meter.sum + 1e-10)
-            mIoU = np.mean(iou_class)
-            mAcc = np.mean(accuracy_class)
+            mIoU = np.mean(iou_class[1:])
+            mAcc = np.mean(accuracy_class[1:])
             logger.info('iter = {} of {} completed, LR = {} loss = {}, mIoU = {}'
                         .format(i_iter, cfg['trainer']['epochs']*len(data_loader), lr, losses.avg, mIoU))
 
@@ -227,23 +228,29 @@ def validate(model, data_loader, epoch):
         intersection, union, target = intersectionAndUnion(output, target, num_classes, ignore_label)
 
         # gather all validation information
-        reduced_intersection = torch.from_numpy(intersection).cuda()
-        reduced_union = torch.from_numpy(union).cuda()
-        reduced_target = torch.from_numpy(target).cuda()
+        # reduced_intersection = intersection
+        # reduced_union = union
+        # reduced_target = target
+        
+        # if is_distributed():
+        #     reduced_intersection = torch.from_numpy(intersection).cuda()
+        #     reduced_union = torch.from_numpy(union).cuda()
+        #     reduced_target = torch.from_numpy(target).cuda()
+        #     dist.all_reduce(reduced_intersection)
+        #     dist.all_reduce(reduced_union)
+        #     dist.all_reduce(reduced_target)
 
-        dist.all_reduce(reduced_intersection)
-        dist.all_reduce(reduced_union)
-        dist.all_reduce(reduced_target)
-
-        intersection_meter.update(reduced_intersection.cpu().numpy())
-        union_meter.update(reduced_union.cpu().numpy())
-        target_meter.update(reduced_target.cpu().numpy())
+        intersection_meter.update(intersection)
+        union_meter.update(union)
+        target_meter.update(target)
+        if step % 20 == 0:
+            logger.info('iter = {} of {} completed'
+                            .format(step, len(data_loader)))
 
     iou_class = intersection_meter.sum / (union_meter.sum + 1e-10)
     accuracy_class = intersection_meter.sum / (target_meter.sum + 1e-10)
-    mIoU = np.mean(iou_class)
+    mIoU = np.mean(iou_class[1:])
     
-    print(mIoU)
     if rank == 0:
         logger.info('=========epoch[{}]=========,Val mIoU = {}'.format(epoch, mIoU))
     torch.save(mIoU, 'eval_metric.pth.tar')

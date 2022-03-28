@@ -15,6 +15,10 @@ def get_world_size():
         return 1
     return dist.get_world_size()
 
+def is_distributed():
+    num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
+    distributed = num_gpus > 1
+    return distributed
 
 def get_rank():
     if not dist.is_available():

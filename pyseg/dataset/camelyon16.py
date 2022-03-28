@@ -18,6 +18,8 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import DataLoader
 
 from . import augmentation as psp_trsform
+import albumentations as A
+import albumentations.pytorch as AP
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -40,9 +42,9 @@ class Camelyon16Dataset(data_utils.Dataset):
         df = pd.read_csv(path + '/data.csv')
 
         if mode == 'train':
-            # df = df[df['filename_img'].str.count("^tumor_0(15|19)_.*") > 0]
-            df = df[df['filename_img'].str.count("^tumor_019_.*") > 0]
-            df = self.__filter_data(df, bin_counts=4, bin_ratio=[7, 1, 1, 1])
+            df = df[df['filename_img'].str.count("^tumor_0(15|19)_.*") > 0]
+            df = self.__filter_data(df, bin_counts=4, bin_ratio=[0, 1, 1, 1])
+            # df = df.head(100)
             images = df['filename_img'].to_numpy()
             rles = df['filename_rle'].to_numpy()
             # images = df[df['filename_img'].str.count("^normal_00[1-8].*|^tumor_00[1-4].*") > 0][
@@ -52,6 +54,8 @@ class Camelyon16Dataset(data_utils.Dataset):
         elif mode == 'val':
             df = df[df['std_img'] > self.config["STD_THRESHOLD"]]
             df = df[df['filename_img'].str.count("^tumor_034.*") > 0]
+            df = self.__filter_data(df, bin_counts=4, bin_ratio=[0, 1, 1, 1])
+            # df = df.head(100)
             # df = df.sample(frac=1).reset_index(drop=True).sample(n=5000)  # shuffle and then sample
             images = df['filename_img'].to_numpy()
             rles = df['filename_rle'].to_numpy()
@@ -85,7 +89,8 @@ class Camelyon16Dataset(data_utils.Dataset):
 
         self.X = images
         self.y = rles
-        self.path = path#os.path.join(path, "lamels")
+        # self.path = path
+        self.path = os.path.join(path, "lamels")
 
         print('Loaded {} dataset with {} samples'.format(mode, len(self.X)))
         print("# " * 50)
@@ -119,25 +124,29 @@ class Camelyon16Dataset(data_utils.Dataset):
         return data_balanced
 
     def __getitem__(self, idx):
-        sub_dir = self.X[idx][:9]
-        path_dir = os.path.join(self.path, sub_dir)
-        # import time
+        # sub_dir = self.X[idx][:9]
+        path_dir = self.path #os.path.join(self.path, sub_dir)
         
         image = Image.open(path_dir + '/' + self.X[idx])
         label = 1 if len(pd.read_pickle(path_dir + '/' + self.y[idx])) else 0
         rle = pd.read_pickle(path_dir + '/' + self.y[idx])
         mask = rle2mask(rle, (1024, 1024))
+        image = np.array(image)
+        mask = np.array(mask)
         # start_time = time.time()
-        transformed, mask = self.transform(np.asarray(image), mask)
+        transformed = self.transform(image=image, mask=mask)
+        image = transformed["image"]
+        mask = transformed["mask"]
         # logger.info(time.time() - start_time)
-        transformed = transformed.squeeze(0)
+        image = image.squeeze(0)
         mask = mask.squeeze()
+        # logger.info(mask.sum() / (mask.shape[0] * mask.shape[1]))
         if self.return_image_rle:
             return {"pos": (self.test_df.iloc[idx]["x_index"], self.test_df.iloc[idx]["y_index"]),
                     "image": np.array(image.getdata()).reshape(image.size[0], image.size[1], 3),
                     "transformed": transformed, "label": label, "rle": rle, "filename_img": self.X[idx]}
         
-        return transformed, mask
+        return image, mask
 
     def __len__(self):
         return len(self.X)
@@ -156,26 +165,44 @@ def rle2mask(rle, rle_shape):
     # return cv2.resize(image, mask_shape)
 
 
+# def build_transfrom(cfg):
+#     trs_form = []
+#     mean, std, ignore_label = cfg['mean'], cfg['std'], cfg['ignore_label']
+#     trs_form.append(psp_trsform.ToTensor())
+#     trs_form.append(psp_trsform.Normalize(mean=mean, std=std))
+#     if cfg.get('resize', False):
+#         trs_form.append(psp_trsform.Resize())
+#     if cfg.get('rand_resize', False):
+#         trs_form.append(psp_trsform.RandResize(cfg['rand_resize']))
+#     if cfg.get('rand_rotation', False):
+#         rand_rotation = cfg['rand_rotation']
+#         trs_form.append(psp_trsform.RandRotate(rand_rotation, ignore_label=ignore_label))
+#     if cfg.get('GaussianBlur', False) and cfg['GaussianBlur']:
+#         trs_form.append(psp_trsform.RandomGaussianBlur())
+#     if cfg.get('flip', False) and cfg.get('flip'):
+#         trs_form.append(psp_trsform.RandomHorizontalFlip())
+#     if cfg.get('crop', False):
+#         crop_size, crop_type = cfg['crop']['size'], cfg['crop']['type']
+#         trs_form.append(psp_trsform.Crop(crop_size, crop_type=crop_type, ignore_label=ignore_label))
+#     return psp_trsform.Compose(trs_form)
+
 def build_transfrom(cfg):
-    trs_form = []
+    trns_form = []
     mean, std, ignore_label = cfg['mean'], cfg['std'], cfg['ignore_label']
-    trs_form.append(psp_trsform.ToTensor())
-    trs_form.append(psp_trsform.Normalize(mean=mean, std=std))
     if cfg.get('resize', False):
-        trs_form.append(psp_trsform.Resize(cfg['resize']))
-    if cfg.get('rand_resize', False):
-        trs_form.append(psp_trsform.RandResize(cfg['rand_resize']))
+        width, height = cfg['resize']
+        trns_form.append(A.Resize(height=height, width=width))
+    if cfg.get('rand_resize_crop', False):
+        scale = cfg['rand_resize_crop']['scale']
+        w, h = cfg['rand_resize_crop']['size']
+        trns_form.append(A.RandomResizedCrop(height=h, width=w, scale=tuple(scale)))
+    if cfg.get('flip', False) and cfg.get('flip'):
+        trns_form.append(A.HorizontalFlip(p=0.5))
     if cfg.get('rand_rotation', False):
         rand_rotation = cfg['rand_rotation']
-        trs_form.append(psp_trsform.RandRotate(rand_rotation, ignore_label=ignore_label))
-    if cfg.get('GaussianBlur', False) and cfg['GaussianBlur']:
-        trs_form.append(psp_trsform.RandomGaussianBlur())
-    if cfg.get('flip', False) and cfg.get('flip'):
-        trs_form.append(psp_trsform.RandomHorizontalFlip())
-    if cfg.get('crop', False):
-        crop_size, crop_type = cfg['crop']['size'], cfg['crop']['type']
-        trs_form.append(psp_trsform.Crop(crop_size, crop_type=crop_type, ignore_label=ignore_label))
-    return psp_trsform.Compose(trs_form)
+        trns_form.append(A.Rotate(limit=rand_rotation))
+    trns_form += [A.Normalize(mean=mean, std=std), AP.ToTensorV2()]
+    return A.Compose(trns_form)
 
 
 def build_camloader(split, all_cfg):
@@ -197,9 +224,11 @@ def build_camloader(split, all_cfg):
     if distributed:
         sample = DistributedSampler(dset)
 
-        loader = DataLoader(dset, batch_size=batch_size, num_workers=workers,
+        loader = DataLoader(dset, batch_size=batch_size if (split == 'train') else 1, num_workers=workers if (split == 'train') else 1,
                             sampler=sample, shuffle=False, pin_memory=False)
     else:
         
-        loader = DataLoader(dset, batch_size=batch_size, num_workers=workers, shuffle=(split == 'train'), pin_memory=False)
+        loader = DataLoader(dset, batch_size=batch_size if (split == 'train') else 1, num_workers=workers if (split == 'train') else 1, shuffle=(split == 'train'), pin_memory=False)
     return loader
+
+    
