@@ -40,7 +40,7 @@ saver:
 
 criterion:
   type: ohem
-  contrast_weight: 0.0
+  contrast_weight: 0.1
   kwargs:
     thresh: 0.7
     min_kept: 100000
