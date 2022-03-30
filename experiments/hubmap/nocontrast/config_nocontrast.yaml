@@ -1,8 +1,8 @@
 dataset: # Required.
-  type: camelyon
+  type: hubmap
   train:
-    data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16
-    data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16/data.csv
+    data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches
+    data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches/data.csv
     resize: [512, 512]
     rand_resize_crop: 
       scale: [0.8, 1.2]
@@ -10,8 +10,8 @@ dataset: # Required.
     rand_rotation: [-90, 90]
     flip: True
   val:
-    data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16
-    data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16/data.csv
+    data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches
+    data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches/data.csv
     resize: [512, 512]
   batch_size: 6
   workers: 4

@@ -192,7 +192,7 @@ def train(model, optimizer, lr_scheduler, criterion, data_loader, epoch):
 
     iou_class = intersection_meter.sum / (union_meter.sum + 1e-10)
     accuracy_class = intersection_meter.sum / (target_meter.sum + 1e-10)
-    mIoU = np.mean(iou_class)
+    mIoU = np.mean(iou_class[1:])
     if rank == 0:
         logger.info('=========epoch[{}]=========,Train mIoU = {}'.format(epoch, mIoU))
 
