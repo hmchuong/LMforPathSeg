@@ -97,6 +97,7 @@ def main():
     for epoch in range(cfg_trainer['epochs']):
         # Training
         train(model, optimizer, lr_scheduler, criterion, trainloader, epoch)
+        import gc; gc.collect()
         # Validataion
         if cfg_trainer["eval_on"]:
             if rank ==0:
