@@ -107,20 +107,19 @@ class Camelyon16Dataset(data_utils.Dataset):
         :return: balanced data as pandas dataframe
         """
         data = data[data['std_img'] > self.config['STD_THRESHOLD']].reset_index(drop=True)
-        print('data.shape = ', data.shape)
 
         data['binned'] = np.round(data['ratio_masked_area'] * self.config['MULTIPLIER_BIN']).astype(int)
         max_bin = bin_counts - 1
         data['binned'] = data['binned'].apply(lambda x: max_bin if x >= max_bin else x)
-        print('bin shape = ', data['binned'].value_counts())
 
         patch_number = data[data['binned'] == 0].shape[0] / 0.7
 
         data_balanced_list = []
         for bin in range(bin_counts):
-            data_balanced_list.append(
-                data[data['binned'] == bin].sample(int(patch_number * (bin_ratio[bin] / sum(bin_ratio))), replace=True))
-            # print(len(data_balanced_list[-1]))
+            bin_data = data[data['binned'] == bin]
+            if not bin_data.empty:
+                data_balanced_list.append(bin_data.sample(int(patch_number * (bin_ratio[bin] / sum(bin_ratio))),
+                                                       replace=True))
         data_balanced = pd.concat(data_balanced_list, axis=0)
 
         return data_balanced
