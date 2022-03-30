@@ -2,6 +2,7 @@ import argparse
 import os.path as osp
 import yaml
 import logging
+import gc
 import numpy as np
 import os
 
@@ -96,8 +97,9 @@ def main():
     best_prec = 0
     for epoch in range(cfg_trainer['epochs']):
         # Training
+        gc.collect()
         train(model, optimizer, lr_scheduler, criterion, trainloader, epoch)
-        import gc; gc.collect()
+        gc.collect()
         # Validataion
         if cfg_trainer["eval_on"]:
             if rank ==0:
