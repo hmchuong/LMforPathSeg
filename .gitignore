@@ -14,3 +14,5 @@ data/list
 experiments/*/slurm_*
 experiments/*/log_*
 experiments/*/checkpoints/
+*.jpg
+./experiments/camelyon/getGPU.sh

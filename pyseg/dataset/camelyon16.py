@@ -25,11 +25,13 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 from pyseg.utils.utils import init_log
 import logging
-logger =init_log('internal', logging.INFO)
+
+logger = init_log('internal', logging.INFO)
+
 
 class Camelyon16Dataset(data_utils.Dataset):
 
-    def __init__(self, path=None, mode="train", transform=None, cfg=None):
+    def __init__(self, path=None, mode="train", transform=None, cfg=None, lamel_idx=None):
         super().__init__()
         self.transform = transform
         self.return_image_rle = False
@@ -42,7 +44,7 @@ class Camelyon16Dataset(data_utils.Dataset):
         df = pd.read_csv(path + '/data.csv')
 
         if mode == 'train':
-            df = df[df['filename_img'].str.count("^tumor_0(15|19)_.*") > 0]
+            df = df[df['filename_img'].str.count("^tumor_0(25|28|29|30|31|34|36|39|47|55|61)_.*") > 0]
             df = self.__filter_data(df, bin_counts=4, bin_ratio=[0, 1, 1, 1])
             # df = df.head(100)
             images = df['filename_img'].to_numpy()
@@ -53,7 +55,7 @@ class Camelyon16Dataset(data_utils.Dataset):
 
         elif mode == 'val':
             df = df[df['std_img'] > self.config["STD_THRESHOLD"]]
-            df = df[df['filename_img'].str.count("^tumor_034.*") > 0]
+            df = df[df['filename_img'].str.count("^tumor_024.*") > 0]
             df = self.__filter_data(df, bin_counts=4, bin_ratio=[0, 1, 1, 1])
             # df = df.head(100)
             # df = df.sample(frac=1).reset_index(drop=True).sample(n=5000)  # shuffle and then sample
@@ -64,7 +66,7 @@ class Camelyon16Dataset(data_utils.Dataset):
             df = df[df['std_img'] > self.config["STD_THRESHOLD"]]
             self.return_image_rle = True
             # df = df[df['filename_img'].str.count("^tumor_036.*|^tumor_034.*|^tumor_024.*") > 0]
-            df = df[df['filename_img'].str.count("^tumor_006.*|^tumor_008.*|^tumor_020.*") > 0]
+            df = df[df['filename_img'].str.count("^^tumor_0(14|15|17|19|22|23)") > 0]
             df = df.sample(frac=1).reset_index(drop=True).sample(n=5000)  # shuffle and then sample
             self.test_df = df
             images = df['filename_img'].to_numpy()
@@ -72,8 +74,8 @@ class Camelyon16Dataset(data_utils.Dataset):
 
         elif mode == 'plot':
             self.return_image_rle = True
-            # self.test_df = df[df['filename_img'].str.count("^tumor_{}.*".format(str(lamel_idx).zfill(3))) > 0]
-            lamel_idx = 19
+            self.test_df = df[df['filename_img'].str.count("^tumor_{}.*".format(str(lamel_idx).zfill(3))) > 0]
+            # lamel_idx = 19
             tum_num = "^tumor_{num}.*".format(num=str(lamel_idx).zfill(3))
             self.test_df = df[df['filename_img'].str.count(tum_num) > 0]
             self.test_df = self.test_df.sort_values("filename_img")
@@ -125,8 +127,8 @@ class Camelyon16Dataset(data_utils.Dataset):
 
     def __getitem__(self, idx):
         # sub_dir = self.X[idx][:9]
-        path_dir = self.path #os.path.join(self.path, sub_dir)
-        
+        path_dir = self.path  # os.path.join(self.path, sub_dir)
+
         image = Image.open(path_dir + '/' + self.X[idx])
         label = 1 if len(pd.read_pickle(path_dir + '/' + self.y[idx])) else 0
         rle = pd.read_pickle(path_dir + '/' + self.y[idx])
@@ -134,6 +136,11 @@ class Camelyon16Dataset(data_utils.Dataset):
         image = np.array(image)
         mask = np.array(mask)
         # start_time = time.time()
+        if self.return_image_rle:
+            image = cv2.resize(image, (100, 100))
+            return {"pos": (self.test_df.iloc[idx]["x_index"], self.test_df.iloc[idx]["y_index"]),
+                    "image": image, "label": label, "rle": rle, "filename_img": self.X[idx]}
+
         transformed = self.transform(image=image, mask=mask)
         image = transformed["image"]
         mask = transformed["mask"]
@@ -141,11 +148,7 @@ class Camelyon16Dataset(data_utils.Dataset):
         image = image.squeeze(0)
         mask = mask.squeeze()
         # logger.info(mask.sum() / (mask.shape[0] * mask.shape[1]))
-        if self.return_image_rle:
-            return {"pos": (self.test_df.iloc[idx]["x_index"], self.test_df.iloc[idx]["y_index"]),
-                    "image": np.array(image.getdata()).reshape(image.size[0], image.size[1], 3),
-                    "transformed": transformed, "label": label, "rle": rle, "filename_img": self.X[idx]}
-        
+
         return image, mask
 
     def __len__(self):
@@ -224,11 +227,12 @@ def build_camloader(split, all_cfg):
     if distributed:
         sample = DistributedSampler(dset)
 
-        loader = DataLoader(dset, batch_size=batch_size if (split == 'train') else 1, num_workers=workers if (split == 'train') else 1,
+        loader = DataLoader(dset, batch_size=batch_size if (split == 'train') else 1,
+                            num_workers=workers if (split == 'train') else 1,
                             sampler=sample, shuffle=False, pin_memory=False)
     else:
-        
-        loader = DataLoader(dset, batch_size=batch_size if (split == 'train') else 1, num_workers=workers if (split == 'train') else 1, shuffle=(split == 'train'), pin_memory=False)
-    return loader
 
-    
+        loader = DataLoader(dset, batch_size=batch_size if (split == 'train') else 1,
+                            num_workers=workers if (split == 'train') else 1, shuffle=(split == 'train'),
+                            pin_memory=False)
+    return loader
