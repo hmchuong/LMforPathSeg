@@ -57,7 +57,7 @@ class ModelBuilder(nn.Module):
             pred_aux = self.auxor(feat1)
             pred_aux = F.upsample(input=pred_aux, size=(h, w), mode='bilinear', align_corners=True)
             
-            if self.contrast:
+            if self.contrast and self.training: 
                 res, contrast_loss = pred_head
                 res = F.upsample(input=res, size=(h, w), mode='bilinear', align_corners=True)
                 #fea = F.upsample(input=fea, size=(h, w), mode='bilinear', align_corners=True)

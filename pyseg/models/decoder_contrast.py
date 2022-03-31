@@ -63,6 +63,8 @@ class dec_deeplabv3_contrast(nn.Module):
         aspp_out = self.aspp(x)
         fea = self.head(aspp_out)
         res = self.final(fea)
+        if not self.training:
+            return res
         bs = x.shape[0]
         keys, vals = self.construct_region(fea, res)  #keys: N,256   vals: N,  N is the category number in this batch
         keys = nn.functional.normalize(keys,dim=1)

@@ -143,10 +143,10 @@ def build_hubmaploader(split, all_cfg):
         sample = DistributedSampler(dset)
 
         loader = DataLoader(dset, batch_size=batch_size if (split == 'train') else 1, num_workers=workers if (split == 'train') else 1,
-                            sampler=sample, shuffle=False, pin_memory=False)
+                            sampler=sample, shuffle=False)
     else:
         
-        loader = DataLoader(dset, batch_size=batch_size if (split == 'train') else 1, num_workers=workers if (split == 'train') else 1, shuffle=(split == 'train'), pin_memory=False)
+        loader = DataLoader(dset, batch_size=batch_size if (split == 'train') else 1, num_workers=workers if (split == 'train') else 1, shuffle=(split == 'train'))
     return loader
 
     

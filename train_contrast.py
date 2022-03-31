@@ -3,6 +3,7 @@ import os.path as osp
 import yaml
 import logging
 import gc
+# import psutil
 import numpy as np
 import os
 
@@ -100,11 +101,15 @@ def main():
         gc.collect()
         train(model, optimizer, lr_scheduler, criterion, trainloader, epoch)
         gc.collect()
+        # import pdb; pdb.set_trace()
+        # print('After training: RAM memory % used:', psutil.virtual_memory()[2])
         # Validataion
         if cfg_trainer["eval_on"]:
             if rank ==0:
                 logger.info("start evaluation")
             prec = validate(model, valloader, epoch)
+            # print('After validate: RAM memory % used:', psutil.virtual_memory()[2])
+            # import pdb; pdb.set_trace()
             if rank == 0:
                 if prec > best_prec:
                     best_prec = prec
@@ -138,6 +143,7 @@ def train(model, optimizer, lr_scheduler, criterion, data_loader, epoch):
     target_meter = AverageMeter()
 
     for step, batch in enumerate(data_loader):
+        
         i_iter = epoch * len(data_loader) + step
         lr = lr_scheduler.get_lr()
         lr_scheduler.step()
@@ -160,7 +166,7 @@ def train(model, optimizer, lr_scheduler, criterion, data_loader, epoch):
         output = output.data.max(1)[1].cpu().numpy()
         target = labels.cpu().numpy()
        
-        # alculate miou
+        # calculate miou
         intersection, union, target = intersectionAndUnion(output, target, num_classes, ignore_label)
 
         # gather all validation information
@@ -192,7 +198,8 @@ def train(model, optimizer, lr_scheduler, criterion, data_loader, epoch):
             mAcc = np.mean(accuracy_class[1:])
             logger.info('iter = {} of {} completed, LR = {} loss = {}, mIoU = {}'
                         .format(i_iter, cfg['trainer']['epochs']*len(data_loader), lr, losses.avg, mIoU))
-
+        del preds, output, target, images, labels
+        gc.collect()
     iou_class = intersection_meter.sum / (union_meter.sum + 1e-10)
     accuracy_class = intersection_meter.sum / (target_meter.sum + 1e-10)
     mIoU = np.mean(iou_class[1:])
@@ -252,7 +259,7 @@ def validate(model, data_loader, epoch):
 
     iou_class = intersection_meter.sum / (union_meter.sum + 1e-10)
     accuracy_class = intersection_meter.sum / (target_meter.sum + 1e-10)
-    mIoU = np.mean(iou_class[1:])
+    mIoU = np.mean(iou_class)
     
     if rank == 0:
         logger.info('=========epoch[{}]=========,Val mIoU = {}'.format(epoch, mIoU))

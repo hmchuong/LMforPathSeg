@@ -14,7 +14,7 @@ dataset: # Required.
     data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches/data.csv
     resize: [512, 512]
   batch_size: 6
-  workers: 4
+  workers: 2
   mean: [0.845, 0.800, 0.820]
   std: [0.240, 0.277, 0.245]
   ignore_label: 255
@@ -62,4 +62,5 @@ net: # Required.
     kwargs:
       inner_planes: 256
       dilations: [12, 24, 36]
+      queue_len: 705
       
