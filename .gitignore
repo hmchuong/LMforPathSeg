@@ -16,3 +16,6 @@ experiments/*/log_*
 experiments/*/checkpoints/
 *.jpg
 ./experiments/camelyon/getGPU.sh
+*slurm_*
+**/log_*.txt
+*.pth

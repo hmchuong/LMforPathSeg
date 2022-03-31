@@ -266,7 +266,6 @@ def valiadte_whole(model, classes, data_list, mean, std, scales, gray_folder, co
         color.save(color_path)
     logger.info('<<<<<<<<<<<<<<<<< End  Evaluation <<<<<<<<<<<<<<<<<')
 
-
 def cal_acc(data_list, pred_folder, classes):
     intersection_meter = AverageMeter()
     union_meter = AverageMeter()

@@ -13,6 +13,10 @@ dataset: # Required.
     data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16
     data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16/data.csv
     resize: [512, 512]
+  test:
+    data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16
+    data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16/data.csv
+    resize: [512, 512]
   batch_size: 6
   workers: 4
   mean: [0.845, 0.800, 0.820]
@@ -38,6 +42,9 @@ saver:
   snapshot_dir: checkpoints
   pretrain: ''
 
+test:
+  model: checkpoints/best.pth
+  
 criterion:
   type: ohem
   contrast_weight: 0.0

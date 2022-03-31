@@ -13,6 +13,10 @@ dataset: # Required.
     data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches
     data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches/data.csv
     resize: [512, 512]
+  test:
+    data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches
+    data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches/data.csv
+    resize: [512, 512]
   batch_size: 6
   workers: 2
   mean: [0.845, 0.800, 0.820]
@@ -33,6 +37,9 @@ trainer: # Required.
     mode: poly
     kwargs:
       power: 0.9
+
+test:
+  model: 'checkpoints/best.pth'
 
 saver:
   snapshot_dir: checkpoints
