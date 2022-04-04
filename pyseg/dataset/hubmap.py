@@ -116,6 +116,7 @@ def build_transfrom(cfg):
         trns_form.append(A.RandomResizedCrop(height=h, width=w, scale=tuple(scale)))
     if cfg.get('flip', False) and cfg.get('flip'):
         trns_form.append(A.HorizontalFlip(p=0.5))
+        trns_form.append(A.VerticalFlip(p=0.5))
     if cfg.get('rand_rotation', False):
         rand_rotation = cfg['rand_rotation']
         trns_form.append(A.Rotate(limit=rand_rotation))

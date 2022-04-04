@@ -52,3 +52,11 @@ class ASPP(nn.Module):
         return aspp_out
 
 
+def conv3x3(in_channel, out_channel): #not change resolusion
+    return nn.Conv2d(in_channel,out_channel,
+                      kernel_size=3,stride=1,padding=1,dilation=1,bias=False)
+
+def conv1x1(in_channel, out_channel): #not change resolution
+    return nn.Conv2d(in_channel,out_channel,
+                      kernel_size=1,stride=1,padding=0,dilation=1,bias=False)
+

@@ -4,7 +4,6 @@ from torch.nn import functional as F
 import importlib
 from .decoder_contrast import Aux_Module
 
-
 class ModelBuilder(nn.Module):
     def __init__(self, net_cfg):
         super(ModelBuilder, self).__init__()
@@ -16,6 +15,7 @@ class ModelBuilder(nn.Module):
 
         self._use_auxloss = True if net_cfg.get('aux_loss', False) else False
         self.fpn = True if net_cfg['encoder']["kwargs"].get('fpn', False) else False
+        self.unet = "unet" in net_cfg['decoder']["type"]
         self.contrast = True if 'contrast' in net_cfg['decoder']['type'] else False
         if self._use_auxloss:
             cfg_aux = net_cfg['aux_loss']
@@ -50,6 +50,10 @@ class ModelBuilder(nn.Module):
                 # feat1 used as dsn loss as default, f1 is layer2's output as default
                 f1, f2, feat1, feat2 = self.encoder(x)
                 pred_head = self.decoder([f1, f2,feat1, feat2])
+            elif self.unet:
+                x1, x2, x3, x4 = self.encoder(x)
+                feat1 = x4
+                pred_head = self.decoder(x1, x2, x3, x4)
             else:
                 feat1, feat2 = self.encoder(x)
                 pred_head = self.decoder(feat2)
@@ -66,7 +70,16 @@ class ModelBuilder(nn.Module):
                 pred_head = F.upsample(input=pred_head, size=(h, w), mode='bilinear', align_corners=True)
                 return [pred_head, pred_aux]
         else:
-            feat = self.encoder(x)
-            pred_head = self.decoder(feat)
+            if self.unet:
+                x1, x2, x3, x4 = self.encoder(x)
+                pred_head = self.decoder(x1, x2, x3, x4)
+            else:
+                feat = self.encoder(x)
+                pred_head = self.decoder(feat)
+            if self.contrast and self.training:
+                res, contrast_loss = pred_head
+                res = F.upsample(input=res, size=(h, w), mode='bilinear', align_corners=True)
+                return [res, contrast_loss]
+                
             pred_head = F.upsample(input=pred_head, size=(h, w), mode='bilinear', align_corners=True)
             return pred_head
