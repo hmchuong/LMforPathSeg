@@ -59,7 +59,8 @@ def main():
     model = ModelBuilder(cfg['net'])
     modules_back = [model.encoder]
     modules_head = [model.auxor, model.decoder]
-   
+    best_prec = 0
+
     device = torch.device("cuda")
     model.to(device)
     if is_distributed():
@@ -67,11 +68,13 @@ def main():
             model, device_ids=[args.local_rank], output_device=args.local_rank,
             # this should be removed if we update BatchNorm stats
             find_unused_parameters=True,
-        ) 
+        )
     if cfg['saver']['pretrain']:
-        state_dict = torch.load(cfg['saver']['pretrain'], map_location='cpu')['model_state']
+        state_dict = torch.load(cfg['saver']['pretrain'], map_location='cpu')
         print("Load trained model from ", str(cfg['saver']['pretrain']))
-        load_trained_model(model, state_dict)
+        load_trained_model(model, state_dict['model_state'])
+        best_prec = state_dict['best_IoU']
+
     
     #model.cuda()
     if rank ==0:
@@ -95,8 +98,7 @@ def main():
     lr_scheduler = get_scheduler(cfg_trainer, len(trainloader), optimizer)  # TODO
 
     # Start to train model
-    best_prec = 0
-    for epoch in range(cfg_trainer['epochs']):
+    for epoch in range(cfg_trainer['start_epochs'], cfg_trainer['epochs']):
         # Training
         gc.collect()
         train(model, optimizer, lr_scheduler, criterion, trainloader, epoch)
@@ -104,17 +106,21 @@ def main():
         # import pdb; pdb.set_trace()
         # print('After training: RAM memory % used:', psutil.virtual_memory()[2])
         # Validataion
+        state = {'epoch': epoch,
+                 'model_state': model.state_dict(),
+                 'best_IoU': best_prec,
+                 'optimizer_state': optimizer.state_dict()}
+        torch.save(state, osp.join(cfg['saver']['snapshot_dir'], 'last.pth'))
         if cfg_trainer["eval_on"]:
             if rank ==0:
                 logger.info("start evaluation")
             prec = validate(model, valloader, epoch)
-            # print('After validate: RAM memory % used:', psutil.virtual_memory()[2])
-            # import pdb; pdb.set_trace()
             if rank == 0:
                 if prec > best_prec:
                     best_prec = prec
                     state = {'epoch': epoch,
                          'model_state': model.state_dict(),
+                         'best_IoU': best_prec,
                          'optimizer_state': optimizer.state_dict()}
                     torch.save(state, osp.join(cfg['saver']['snapshot_dir'], 'best.pth'))
                     logger.info('Currently, the best val result is: {}'.format(best_prec))

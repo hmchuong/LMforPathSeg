@@ -40,7 +40,7 @@ trainer: # Required.
 
 saver:
   snapshot_dir: checkpoints
-  pretrain: ''
+  pretrain: 'checkpoints/last.pth'
 
 test:
   model: checkpoints/best.pth

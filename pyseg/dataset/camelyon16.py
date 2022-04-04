@@ -1,5 +1,6 @@
 import glob
 import numpy as np
+import time
 import random
 from torch.utils.data import Dataset
 from PIL import Image
@@ -55,19 +56,17 @@ class Camelyon16Dataset(data_utils.Dataset):
 
         elif mode == 'val':
             df = df[df['std_img'] > self.config["STD_THRESHOLD"]]
-            df = df[df['filename_img'].str.count("^tumor_024.*") > 0]
+            df = df[df['filename_img'].str.count("^tumor_0(14|24).*") > 0]
             df = self.__filter_data(df, bin_counts=4, bin_ratio=[0, 1, 1, 1])
-            # df = df.head(100)
-            # df = df.sample(frac=1).reset_index(drop=True).sample(n=5000)  # shuffle and then sample
             images = df['filename_img'].to_numpy()
             rles = df['filename_rle'].to_numpy()
 
         elif mode == 'test':
             df = df[df['std_img'] > self.config["STD_THRESHOLD"]]
-            self.return_image_rle = True
+            self.return_image_rle = False
             # df = df[df['filename_img'].str.count("^tumor_036.*|^tumor_034.*|^tumor_024.*") > 0]
-            df = df[df['filename_img'].str.count("^^tumor_0(14|15|17|19|22|23)") > 0]
-            df = df.sample(frac=1).reset_index(drop=True).sample(n=5000)  # shuffle and then sample
+            df = df[df['filename_img'].str.count("^tumor_0(15|17|19|23).*") > 0]
+            df = df.sample(frac=1).reset_index(drop=True)  # shuffle and then sample
             self.test_df = df
             images = df['filename_img'].to_numpy()
             rles = df['filename_rle'].to_numpy()
@@ -112,41 +111,40 @@ class Camelyon16Dataset(data_utils.Dataset):
         max_bin = bin_counts - 1
         data['binned'] = data['binned'].apply(lambda x: max_bin if x >= max_bin else x)
 
-        patch_number = data[data['binned'] == 0].shape[0] / 0.7
+        patch_number = data[data['binned'] == 0].shape[0] * 0.7
 
         data_balanced_list = []
         for bin in range(bin_counts):
             bin_data = data[data['binned'] == bin]
             if not bin_data.empty:
                 data_balanced_list.append(bin_data.sample(int(patch_number * (bin_ratio[bin] / sum(bin_ratio))),
-                                                       replace=True))
+                                                          replace=True))
         data_balanced = pd.concat(data_balanced_list, axis=0)
 
         return data_balanced
 
     def __getitem__(self, idx):
-        # sub_dir = self.X[idx][:9]
-        path_dir = self.path  # os.path.join(self.path, sub_dir)
-
+        path_dir = self.path
         image = Image.open(path_dir + '/' + self.X[idx])
         label = 1 if len(pd.read_pickle(path_dir + '/' + self.y[idx])) else 0
         rle = pd.read_pickle(path_dir + '/' + self.y[idx])
         mask = rle2mask(rle, (1024, 1024))
+        thumbnail = np.array(image)
         image = np.array(image)
         mask = np.array(mask)
-        # start_time = time.time()
-        if self.return_image_rle:
-            image = cv2.resize(image, (100, 100))
-            return {"pos": (self.test_df.iloc[idx]["x_index"], self.test_df.iloc[idx]["y_index"]),
-                    "image": image, "label": label, "rle": rle, "filename_img": self.X[idx]}
-
         transformed = self.transform(image=image, mask=mask)
         image = transformed["image"]
         mask = transformed["mask"]
-        # logger.info(time.time() - start_time)
         image = image.squeeze(0)
         mask = mask.squeeze()
-        # logger.info(mask.sum() / (mask.shape[0] * mask.shape[1]))
+        if self.return_image_rle:
+            thumbnail = cv2.resize(thumbnail, (100, 100))
+            thumbnail = cv2.cvtColor(thumbnail,cv2.COLOR_BGR2RGB)
+            return {"pos": (self.test_df.iloc[idx]["x_index"], self.test_df.iloc[idx]["y_index"]),
+                    "image": image,
+                    "thumbnail": thumbnail,
+                    "label": label, "rle": rle, "filename_img": self.X[idx],
+                    "mask": mask}
 
         return image, mask
 
@@ -188,21 +186,22 @@ def rle2mask(rle, rle_shape):
 #         trs_form.append(psp_trsform.Crop(crop_size, crop_type=crop_type, ignore_label=ignore_label))
 #     return psp_trsform.Compose(trs_form)
 
-def build_transfrom(cfg):
+def build_transfrom(cfg, test_mode=False):
     trns_form = []
     mean, std, ignore_label = cfg['mean'], cfg['std'], cfg['ignore_label']
     if cfg.get('resize', False):
         width, height = cfg['resize']
         trns_form.append(A.Resize(height=height, width=width))
-    if cfg.get('rand_resize_crop', False):
+    if not test_mode and cfg.get('rand_resize_crop', False):
         scale = cfg['rand_resize_crop']['scale']
         w, h = cfg['rand_resize_crop']['size']
         trns_form.append(A.RandomResizedCrop(height=h, width=w, scale=tuple(scale)))
-    if cfg.get('flip', False) and cfg.get('flip'):
+    if not test_mode and cfg.get('flip', False) and cfg.get('flip'):
         trns_form.append(A.HorizontalFlip(p=0.5))
-    if cfg.get('rand_rotation', False):
+    if not test_mode and cfg.get('rand_rotation', False):
         rand_rotation = cfg['rand_rotation']
         trns_form.append(A.Rotate(limit=rand_rotation))
+    # if not test_mode:
     trns_form += [A.Normalize(mean=mean, std=std), AP.ToTensorV2()]
     return A.Compose(trns_form)
 
@@ -217,7 +216,7 @@ def build_camloader(split, all_cfg):
     workers = cfg.get('workers', 2)
     batch_size = cfg.get('batch_size', 1)
     # build transform
-    trs_form = build_transfrom(cfg)
+    trs_form = build_transfrom(cfg, split == "test")
     dset = Camelyon16Dataset(cfg['data_root'], split, trs_form, cfg)
 
     num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1

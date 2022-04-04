@@ -73,7 +73,7 @@ def test(model, data_loader):
         labels = labels.long().cuda()
         with torch.no_grad():
             preds = model(images)
-           
+
         # get the output produced by model
         output = preds[0] if cfg['net'].get('aux_loss', False) else preds
         output = output.data.max(1)[1].cpu().numpy()
