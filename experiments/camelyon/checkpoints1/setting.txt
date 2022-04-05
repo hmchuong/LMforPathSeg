@@ -1,0 +1,2 @@
+            df = df[df['filename_img'].str.count("^tumor_0(25|28|29|30|31|34|36|39|47|55|61)_.*") > 0]
+            df = self.__filter_data(df, bin_counts=4, bin_ratio=[1, 1, 1, 1])
