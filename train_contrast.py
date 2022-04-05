@@ -58,8 +58,12 @@ def main():
     # Create network.
     model = ModelBuilder(cfg['net'])
     modules_back = [model.encoder]
-    modules_head = [model.auxor, model.decoder]
     best_prec = 0
+
+    if hasattr(model, "auxor"):
+        modules_head = [model.auxor, model.decoder]
+    else:
+        modules_head = [model.decoder]
 
     device = torch.device("cuda")
     model.to(device)
@@ -162,13 +166,14 @@ def train(model, optimizer, lr_scheduler, criterion, data_loader, epoch):
         # import pdb; pdb.set_trace()
         contrast_loss = preds[-1] / world_size
         loss = criterion(preds[:-1], labels) / world_size
+        # logger.info("loss: {:.4f}, contrast: {:.4f}".format(loss, contrast_loss))
         loss += cfg['criterion']['contrast_weight']*contrast_loss
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
         # get the output produced by model
-        output = preds[0] if cfg['net'].get('aux_loss', False) else preds
+        output = preds[0] if cfg['net'].get('aux_loss', False) else preds[0]
         output = output.data.max(1)[1].cpu().numpy()
         target = labels.cpu().numpy()
        

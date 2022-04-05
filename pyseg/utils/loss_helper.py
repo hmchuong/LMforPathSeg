@@ -71,8 +71,10 @@ class CriterionOhem(nn.Module):
 
             loss1 = self._criterion1(main_pred, target)
             loss2 = self._criterion2(aux_pred, target)
+            # import pdb; pdb.set_trace()
             loss = loss1 + self._aux_weight * loss2
         else:
+            preds = preds[0]
             pred_h, pred_w = preds.size(2), preds.size(3)
             assert pred_h == h and pred_w == w
             loss = self._criterion1(preds, target)

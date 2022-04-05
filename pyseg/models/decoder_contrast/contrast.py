@@ -1,31 +1,21 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from .base import  ASPP, get_syncbn
+from ..base import  ASPP, get_syncbn
 
-class dec_deeplabv3_contrast(nn.Module):
-   
-    def __init__(self, in_planes, num_classes=19, inner_planes=256, sync_bn=False, dilations=(12, 24, 36), temperature=0.2, queue_len=2975):
-        super(dec_deeplabv3_contrast, self).__init__()
-
-        norm_layer = get_syncbn() if sync_bn else nn.BatchNorm2d
+class dec_contrast(nn.Module):
+    def __init__(self, inner_planes, num_classes=19, temperature=0.2, queue_len=2975):
+        super().__init__()
         self.temperature = temperature
         self.queue_len = queue_len
         self.num_classes = num_classes
         self.criterion = nn.CrossEntropyLoss()
-        self.aspp = ASPP(in_planes, inner_planes=inner_planes, sync_bn=sync_bn, dilations=dilations)
-        self.head = nn.Sequential(
-            nn.Conv2d(self.aspp.get_outplanes(), 256, kernel_size=3, padding=1, dilation=1, bias=False),
-            norm_layer(256),
-            nn.ReLU(inplace=True),
-            nn.Dropout2d(0.1))
-        self.final =  nn.Conv2d(256, num_classes, kernel_size=1, stride=1, padding=0, bias=True)
-
+        self.inner_planes = inner_planes
         for i in range(num_classes):
-            self.register_buffer("queue"+str(i),torch.randn(inner_planes,self.queue_len))
+            self.register_buffer("queue"+str(i),torch.randn(inner_planes, self.queue_len))
             self.register_buffer("ptr"+str(i),torch.zeros(1,dtype=torch.long))
             exec("self.queue"+str(i) + '=' + 'nn.functional.normalize(' + "self.queue"+str(i) + ',dim=0)')
-           
+    
     def _dequeue_and_enqueue(self,keys,vals,cat, bs):
         if cat not in vals:
             return
@@ -37,11 +27,12 @@ class dec_deeplabv3_contrast(nn.Module):
         eval("self.ptr"+str(cat))[0] = ptr
 
     def construct_region(self, fea, pred):
+        
         bs = fea.shape[0]
         pred = pred.max(1)[1].squeeze().view(bs, -1)  
         val = torch.unique(pred)
         fea=fea.squeeze()
-        fea = fea.view(bs, 256,-1).permute(1,0,2)   
+        fea = fea.view(bs, self.inner_planes,-1).permute(1,0,2)   
     
         new_fea = fea[:,pred==val[0]].mean(1).unsqueeze(0) 
         for i in val[1:]:
@@ -58,18 +49,12 @@ class dec_deeplabv3_contrast(nn.Module):
         labels = torch.zeros((N,),dtype=torch.long).cuda()
         return self.criterion(logits,labels)
 
-    def forward(self, x):
-     
-        aspp_out = self.aspp(x)
-        fea = self.head(aspp_out)
-        res = self.final(fea)
-        if not self.training:
-            return res
-        bs = x.shape[0]
+    def forward(self, fea, res):
+        bs = res.shape[0]
         keys, vals = self.construct_region(fea, res)  #keys: N,256   vals: N,  N is the category number in this batch
         keys = nn.functional.normalize(keys,dim=1)
         contrast_loss = 0
-
+        # import pdb; pdb.set_trace()
         for cls_ind in range(self.num_classes):
             if cls_ind in vals:
                 query = keys[list(vals).index(cls_ind)]   #256,
@@ -86,7 +71,6 @@ class dec_deeplabv3_contrast(nn.Module):
         for i in range(self.num_classes):
             self._dequeue_and_enqueue(keys,vals,i, bs)
         return res, contrast_loss
-
 
 class Aux_Module(nn.Module):
     def __init__(self, in_planes, num_classes=19, sync_bn=False):

@@ -17,7 +17,7 @@ import torch.distributed as dist
 from pyseg.utils.loss_helper import get_criterion
 from pyseg.utils.lr_helper import get_scheduler, get_optimizer
 
-from pyseg.utils.utils import AverageMeter, intersectionAndUnion, init_log, load_trained_model
+from pyseg.utils.utils import AverageMeter, intersectionAndUnion, init_log, load_trained_model, dice
 from pyseg.utils.utils import set_random_seed, get_world_size, get_rank, is_distributed
 from pyseg.dataset.builder import get_loader
 
@@ -65,6 +65,7 @@ def test(model, data_loader):
     intersection_meter = AverageMeter()
     union_meter = AverageMeter()
     target_meter = AverageMeter()
+    dice_meter = AverageMeter()
 
     for step, batch in enumerate(data_loader):
         # import pdb; pdb.set_trace()
@@ -80,11 +81,13 @@ def test(model, data_loader):
         target = labels.cpu().numpy()
 
         # start to calculate miou
+        dice_coeff = dice(output, target)
         intersection, union, target = intersectionAndUnion(output, target, num_classes, ignore_label)
 
         intersection_meter.update(intersection)
         union_meter.update(union)
         target_meter.update(target)
+        dice_meter.update(dice_coeff)
         if step % 20 == 0:
             logger.info('iter = {} of {} completed'
                             .format(step, len(data_loader)))
@@ -94,8 +97,9 @@ def test(model, data_loader):
     mIoU = np.mean(iou_class)
     mAcc = np.mean(accuracy_class)
     allAcc = sum(intersection_meter.sum) / (sum(target_meter.sum) + 1e-10)
+    mDice = dice_meter.avg
 
-    logger.info('Eval result: mIoU/mAcc/allAcc {:.4f}/{:.4f}/{:.4f}.'.format(mIoU, mAcc, allAcc))
+    logger.info('Eval result: mIoU/mAcc/allAcc/mDice {:.4f}/{:.4f}/{:.4f}/{:.4f}.'.format(mIoU, mAcc, allAcc, mDice))
     for i in range(num_classes):
         logger.info('Class_{} result: iou/accuracy {:.4f}/{:.4f}'.format(i, iou_class[i], accuracy_class[i]))
 
