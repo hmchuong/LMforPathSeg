@@ -45,7 +45,7 @@ class Camelyon16Dataset(data_utils.Dataset):
         df = pd.read_csv(path + '/data.csv')
 
         if mode == 'train':
-            df = df[df['filename_img'].str.count("^tumor_0(25|28|29|30|31|34|36|39|47|55|61)_.*") > 0]
+            df = df[df['filename_img'].str.count("^tumor_0(28|29|30|31|34|36|39|47|55|61)_.*") > 0]
             df = self.__filter_data(df, bin_counts=4, bin_ratio=[0, 1, 1, 1])
             images = df['filename_img'].to_numpy()
             rles = df['filename_rle'].to_numpy()
@@ -53,7 +53,7 @@ class Camelyon16Dataset(data_utils.Dataset):
 
         elif mode == 'val':
             df = df[df['std_img'] > self.config["STD_THRESHOLD"]]
-            df = df[df['filename_img'].str.count("^tumor_0(14|24).*") > 0]
+            df = df[df['filename_img'].str.count("^tumor_0(19|23).*") > 0]
             df = self.__filter_data(df, bin_counts=4, bin_ratio=[0, 1, 1, 1])
             images = df['filename_img'].to_numpy()
             rles = df['filename_rle'].to_numpy()
@@ -61,8 +61,9 @@ class Camelyon16Dataset(data_utils.Dataset):
         elif mode == 'test':
             df = df[df['std_img'] > self.config["STD_THRESHOLD"]]
             self.return_image_rle = False
-            df = df[df['filename_img'].str.count("^tumor_0(15|17|19|23).*") > 0]
-            df = df.sample(frac=1).reset_index(drop=True)  # shuffle and then sample
+            df = df[df['filename_img'].str.count("^tumor_0(14|16).*") > 0]
+            df = df.sample(frac=0.3).reset_index(drop=True)  # shuffle and then sample
+            df = self.__filter_data(df, bin_counts=4, bin_ratio=[0, 1, 1, 1])
             self.test_df = df
             images = df['filename_img'].to_numpy()
             rles = df['filename_rle'].to_numpy()
@@ -106,7 +107,7 @@ class Camelyon16Dataset(data_utils.Dataset):
         max_bin = bin_counts - 1
         data['binned'] = data['binned'].apply(lambda x: max_bin if x >= max_bin else x)
 
-        patch_number = data[data['binned'] == 0].shape[0] * 0.5
+        patch_number = int(data[data['binned'] == 0].shape[0] * 0.1)
 
         data_balanced_list = []
         for bin in range(bin_counts):
@@ -134,7 +135,7 @@ class Camelyon16Dataset(data_utils.Dataset):
         mask = mask.squeeze()
         if self.return_image_rle:
             thumbnail = cv2.resize(thumbnail, (100, 100))
-            thumbnail = cv2.cvtColor(thumbnail,cv2.COLOR_BGR2RGB)
+            thumbnail = cv2.cvtColor(thumbnail, cv2.COLOR_BGR2RGB)
             return {"pos": (self.test_df.iloc[idx]["x_index"], self.test_df.iloc[idx]["y_index"]),
                     "image": image,
                     "thumbnail": thumbnail,
@@ -157,6 +158,7 @@ def rle2mask(rle, rle_shape):
         image[start_point:end_point] = 1
     image = image.reshape(rle_shape, order='F')  # Needed to align to RLE direction
     return image
+
 
 def build_transfrom(cfg, test_mode=False):
     trns_form = []
@@ -190,7 +192,7 @@ def build_camloader(split, all_cfg):
     # build transform
     trs_form = build_transfrom(cfg, split == "test")
     dset = Camelyon16Dataset(cfg['data_root'], split, trs_form, cfg)
-
+    print(f"camelyon {split} size:", len(dset))
     num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
     distributed = num_gpus > 1
     # build sampler

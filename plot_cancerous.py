@@ -79,7 +79,7 @@ cfg.update(cfg.get("test", {}))
 trns = build_transfrom(cfg, test_mode=True)
 batch_size = 20
 os.makedirs("./slides/", exist_ok=True)
-for lamel in range(14, 70):
+for lamel in range(19, 70):
     try:
 
         print("plotting", lamel, "...")
