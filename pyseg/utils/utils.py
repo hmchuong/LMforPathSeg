@@ -7,6 +7,7 @@ import random
 import torch
 import torch.distributed as dist
 from catalyst.metrics.functional import binary_auc, auc
+from torchmetrics.classification import CohenKappa
 
 
 def get_world_size():
@@ -264,7 +265,12 @@ def dice(im1, im2, empty_score=1.0):
 
 
 def AUC(output, target):
-    return binary_auc(output, target).item()
+    return auc(output, target).item()
+
+def Kappa(output, target):
+    cohenkappa = CohenKappa(num_classes=2)
+    # import ipdb;ipdb.set_trace()
+    return cohenkappa(output, target).item()
 
 
 def load_trained_model(model, loaded_dict):

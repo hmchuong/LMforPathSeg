@@ -64,12 +64,14 @@ class RegCon():
         load_trained_model(self.model, state_dict)
         self.model.eval()
 
-    def predict(self, images):
+    def predict(self, images, logits=True):
         with torch.no_grad():
             preds = self.model(images)
         output = preds[0]
-        output = output.data.max(1)[1].cpu()
-        return output
+        if logits:
+            return output.data.max(1)[1].cpu()
+        else:
+            return output[:, 1, :, :].cpu()
 
 
 data_path = "/fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16/"
@@ -78,8 +80,7 @@ cfg = copy.deepcopy(model.cfg["dataset"])
 cfg.update(cfg.get("test", {}))
 trns = build_transfrom(cfg, test_mode=True)
 batch_size = 20
-os.makedirs("./slides/", exist_ok=True)
-for lamel in range(19, 70):
+for lamel in range(14, 70):
     try:
 
         print("plotting", lamel, "...")
@@ -106,27 +107,27 @@ for lamel in range(19, 70):
         true_pred = 0
         for batch in test_loader:
             images = batch["image"].cuda()
-            pred = model.predict(images)
+            pred = model.predict(images, logits=False)
             # if not model:
             #     pred = np.zeros(batch_size)
-            true_pred += torch.sum(torch.eq(pred, batch["mask"]))
+            # true_pred += torch.sum(torch.eq(pred, batch["mask"]))
             for i in range(batch_size):
-                cernainty = 0.4
+                cernainty = 0.8
                 if i == len(batch["pos"][0]):
                     break
                 c, r = batch["pos"][0][i].item(), batch["pos"][1][i].item()
                 patch = batch["thumbnail"][i].numpy()
-
                 if batch["label"][i] == 1:
-                    patch = apply_color_overlay(patch, batch["mask"][i].numpy(), intensity=cernainty, red=200)
-                if pred[i].sum() > 0:
-                    patch = apply_color_overlay(patch, pred[i].numpy(), intensity=cernainty, green=200, red=50)
+                    patch = apply_color_overlay(patch, batch["mask"][i].numpy(), intensity=cernainty, green=200, red=200)
+                # if pred[i].sum() > 0:
+                #     patch = apply_color_overlay(patch, pred[i].numpy(), intensity=cernainty, green=200, red=50)
 
                 whole_slide_image[tile_size * r:tile_size * (r + 1), c * tile_size:(c + 1) * tile_size, :] = patch
                 sys.stdout.flush()
                 sys.stdout.write("row:{r}, col:{c}\r".format(r=r, c=c))
+        os.makedirs("./slides_tumor/", exist_ok=True)
 
-        save_dir = "./slides/tumor_{}.jpg".format(lamel)
+        save_dir = "./slides_tumor/tumor_{}.jpg".format(lamel)
         cv2.imwrite(save_dir, whole_slide_image)
     except:
         print(lamel, "error")

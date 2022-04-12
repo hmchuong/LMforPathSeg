@@ -62,7 +62,7 @@ class Camelyon16Dataset(data_utils.Dataset):
             df = df[df['std_img'] > self.config["STD_THRESHOLD"]]
             self.return_image_rle = False
             df = df[df['filename_img'].str.count("^tumor_0(14|16).*") > 0]
-            df = df.sample(frac=0.3).reset_index(drop=True)  # shuffle and then sample
+            df = df.sample(frac=1).reset_index(drop=True)  # shuffle and then sample
             df = self.__filter_data(df, bin_counts=4, bin_ratio=[0, 1, 1, 1])
             self.test_df = df
             images = df['filename_img'].to_numpy()

@@ -17,7 +17,7 @@ import torch.distributed as dist
 from pyseg.utils.loss_helper import get_criterion
 from pyseg.utils.lr_helper import get_scheduler, get_optimizer
 
-from pyseg.utils.utils import AverageMeter, intersectionAndUnion, init_log, load_trained_model, dice, AUC
+from pyseg.utils.utils import AverageMeter, intersectionAndUnion, init_log, load_trained_model, dice, AUC, Kappa
 from pyseg.utils.utils import set_random_seed, get_world_size, get_rank, is_distributed
 from pyseg.dataset.builder import get_loader
 
@@ -68,6 +68,7 @@ def test(model, data_loader):
     target_meter = AverageMeter()
     dice_meter = AverageMeter()
     AUC_meter = AverageMeter()
+    Kappa_meter = AverageMeter()
 
     for step, batch in enumerate(data_loader):
         images, labels = batch
@@ -83,6 +84,7 @@ def test(model, data_loader):
         output = preds.data.max(1)[1].cpu()
         target = labels.cpu()
         auc = AUC(output.ravel(), target.ravel())
+        kappa = Kappa(output.ravel(),target.ravel())
         output = output.numpy()
         target = target.numpy()
 
@@ -94,6 +96,8 @@ def test(model, data_loader):
         union_meter.update(union)
         target_meter.update(target)
         dice_meter.update(dice_coeff)
+        if kappa == kappa:
+            Kappa_meter.update(kappa)
         if auc == auc:
             AUC_meter.update(auc)
         if step % 20 == 0:
@@ -106,11 +110,12 @@ def test(model, data_loader):
     mAcc = np.mean(accuracy_class)
     allAcc = sum(intersection_meter.sum) / (sum(target_meter.sum) + 1e-10)
     mDice = dice_meter.avg
-    print(AUC_meter.avg)
     mAUC = AUC_meter.avg
+    kappa = Kappa_meter.avg
+
     logger.info(
-        'Eval result: mIoU/mAcc/allAcc/mDice/mAUC {:.4f}/{:.4f}/{:.4f}/{:.4f}./{:.4f}.'.format(mIoU, mAcc, allAcc,
-                                                                                               mDice, mAUC))
+        'Eval result: mIoU/mAcc/allAcc/mDice/mAUC/kappaScore {:.4f}/{:.4f}/{:.4f}/{:.4f}./{:.4f}./{:.4f}.'.format(mIoU, mAcc, allAcc,
+                                                                                               mDice, mAUC, kappa))
     for i in range(num_classes):
         logger.info('Class_{} result: iou/accuracy {:.4f}/{:.4f}'.format(i, iou_class[i], accuracy_class[i]))
 

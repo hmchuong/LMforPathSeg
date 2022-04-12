@@ -22,4 +22,4 @@ export CUDA_VISIBLE_DEVICES=0
 export PYTHONPATH=$ROOT:$PYTHONPATH
 
 
-python ../../train_contrast.py --config=/fs/classhomes/spring2022/cmsc828l/c828l050/RegionContrast-Med/experiments/camelyon/config_nocontrast.yaml  2>&1 | tee log_$now.txt
+python ../../train_contrast.py --config=/fs/classhomes/spring2022/cmsc828l/c828l050/RegionContrast-Med/experiments/camelyon/config_contrast.yaml
