@@ -7,4 +7,4 @@ export CUDA_VISIBLE_DEVICES=0
 export PYTHONPATH=$ROOT:$PYTHONPATH
 
 
-python ../../../test.py --config=config_deeplabv3_contrast.yaml  2>&1 | tee log_test_dlv3_contrast_zeros_$now.txt
+python ../../../test.py --config=config_deeplabv3_nocontrast.yaml  2>&1 | tee log_test_deeplabv3_nocontrast_$now.txt

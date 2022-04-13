@@ -12,7 +12,7 @@ dataset: # Required.
   val:
     data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches
     data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches/data.csv
-    resize: [512, 512]
+    resize: [320, 320]
   test:
     data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches
     data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches/data.csv
@@ -39,11 +39,13 @@ trainer: # Required.
       power: 0.9
 
 saver:
-  snapshot_dir: checkpoints/unetresnext101
+  snapshot_dir: checkpoints/unetresnext101_0409_zeros
   pretrain: ''
 
 test:
-  model: 'checkpoints/best.pth'
+  model: 'checkpoints/unetresnext101_0409_zeros/best.pth'
+  # save_result: True
+  # save_dir: outputs/unetresnext101_0404
 
 criterion:
   type: ohem
@@ -66,5 +68,5 @@ net: # Required.
     type: pyseg.models.decoder_contrast.dec_unet_contrast
     kwargs:
       inner_planes: 320
-      queue_len: 705
+      queue_len: 308
       

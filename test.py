@@ -6,6 +6,7 @@ import gc
 # import psutil
 import numpy as np
 import os
+import cv2
 
 import torch
 import torch.backends.cudnn as cudnn
@@ -47,7 +48,7 @@ def main():
     model.to(device)
 
     state_dict = torch.load(cfg['test']['model'], map_location='cpu')['model_state']
-    logger.info("Load trained model from ", str(cfg['test']['model']))
+    logger.info("Load trained model from {}".format(str(cfg['test']['model'])))
     load_trained_model(model, state_dict)
 
     logger.info(model)
@@ -69,7 +70,7 @@ def test(model, data_loader):
 
     for step, batch in enumerate(data_loader):
         # import pdb; pdb.set_trace()
-        images, labels = batch
+        images, labels, name = batch
         images = images.cuda()
         labels = labels.long().cuda()
         with torch.no_grad():
@@ -79,9 +80,13 @@ def test(model, data_loader):
         output = preds[0] if cfg['net'].get('aux_loss', False) else preds
         output = output.data.max(1)[1].cpu().numpy()
         target = labels.cpu().numpy()
-
+        if cfg['test'].get('save_result', False):
+            os.makedirs(cfg['test']['save_dir'], exist_ok=True)
+            cv2.imwrite(os.path.join(cfg['test']['save_dir'], name[0]), output[0] * 255)
         # start to calculate miou
         dice_coeff = dice(output, target)
+        with open("val_dlv3_zeros.csv", "a") as f:
+            f.write(name[0] + "\t" + str(dice_coeff) + "\n")
         intersection, union, target = intersectionAndUnion(output, target, num_classes, ignore_label)
 
         intersection_meter.update(intersection)

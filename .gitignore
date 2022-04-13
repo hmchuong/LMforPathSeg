@@ -19,3 +19,5 @@ experiments/*/checkpoints/
 *slurm_*
 **/log_*.txt
 *.pth
+*.csv
+**/checkpoints

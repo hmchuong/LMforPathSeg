@@ -45,7 +45,7 @@ IDS = ['0486052bb',
 
 class HubmapDataset(data_utils.Dataset):
 
-    def __init__(self, path=None, mode="train", transform=None, cfg=None):
+    def __init__(self, path=None, mode="train", transform=None, cfg=None, return_name=False):
         super().__init__()
         self.transform = transform
         self.cfg = cfg
@@ -59,7 +59,7 @@ class HubmapDataset(data_utils.Dataset):
         if mode == 'train':
             filter_str = "^./images/(" + "|".join(IDS[:10]) + ")_*"
             df = df[df['image'].str.count(filter_str) > 0]
-            df = df[df['ratio'] > ratio_threshold]
+            # df = df[df['ratio'] > ratio_threshold]
             images = df['image'].to_numpy()
             rles = df['mask'].to_numpy()
 
@@ -80,6 +80,7 @@ class HubmapDataset(data_utils.Dataset):
         self.X = images
         self.y = rles
         self.path = path
+        self.return_name = return_name
 
         print('Loaded {} dataset with {} samples'.format(mode, len(self.X)))
         print("# " * 50)
@@ -99,6 +100,8 @@ class HubmapDataset(data_utils.Dataset):
         image = image.squeeze(0)
         mask = mask.squeeze()
         # logger.info(mask.sum() / (mask.shape[0] * mask.shape[1]))
+        if self.return_name:
+            return image, mask, self.X[idx].split('/')[-1]
         return image, mask
 
     def __len__(self):
@@ -135,7 +138,7 @@ def build_hubmaploader(split, all_cfg):
     batch_size = cfg.get('batch_size', 1)
     # build transform
     trs_form = build_transfrom(cfg)
-    dset = HubmapDataset(cfg['data_root'], split, trs_form, cfg)
+    dset = HubmapDataset(cfg['data_root'], split, trs_form, cfg, return_name=(split=='test'))
 
     num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
     distributed = num_gpus > 1
