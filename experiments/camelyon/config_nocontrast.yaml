@@ -17,7 +17,7 @@ dataset: # Required.
     data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16
     data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16/data.csv
     resize: [512, 512]
-  batch_size: 6
+  batch_size: 10
   workers: 4
   mean: [0.845, 0.800, 0.820]
   std: [0.240, 0.277, 0.245]
@@ -39,11 +39,11 @@ trainer: # Required.
       power: 0.9
 
 saver:
-  snapshot_dir: checkpoints
+  snapshot_dir: checkpoints_noncontrast
   pretrain: ''
 
 test:
-  model: checkpoints/best.pth
+  model: checkpoints_noncontrast/best.pth
   
 criterion:
   type: ohem

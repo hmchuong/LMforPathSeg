@@ -1,4 +1,3 @@
-
 import os
 from PIL import Image
 import numpy as np
@@ -7,6 +6,9 @@ import logging
 import random
 import torch
 import torch.distributed as dist
+from catalyst.metrics.functional import binary_auc, auc
+from torchmetrics.classification import CohenKappa
+
 
 def get_world_size():
     if not dist.is_available():
@@ -15,10 +17,12 @@ def get_world_size():
         return 1
     return dist.get_world_size()
 
+
 def is_distributed():
     num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
     distributed = num_gpus > 1
     return distributed
+
 
 def get_rank():
     if not dist.is_available():
@@ -49,6 +53,7 @@ def synchronize():
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
+
     def __init__(self, length=0):
         self.length = length
         self.reset()
@@ -74,7 +79,7 @@ class AverageMeter(object):
             self.avg = np.mean(self.history)
         else:
             self.val = val
-            self.sum += val*num
+            self.sum += val * num
             self.count += num
             self.avg = self.sum / self.count
 
@@ -130,7 +135,7 @@ def accuracy(output, target, topk=(1,)):
     res = []
     for k in topk:
         correct_k = correct[:k].view(-1).float().sum(0)
-        res.append(correct_k.mul_(100.0/batch_size))
+        res.append(correct_k.mul_(100.0 / batch_size))
     return res
 
 
@@ -176,6 +181,7 @@ def get_palette(num_cls):
             lab >>= 3
     return palette
 
+
 def set_random_seed(seed, deterministic=False):
     """Set random seed.
     """
@@ -187,6 +193,7 @@ def set_random_seed(seed, deterministic=False):
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
+
 def intersectionAndUnion(output, target, K, ignore_index=255):
     # 'K' classes, output and target sizes are N or N * L or N * H * W, each value in range 0 to K - 1.
     assert (output.ndim in [1, 2, 3])
@@ -195,11 +202,12 @@ def intersectionAndUnion(output, target, K, ignore_index=255):
     target = target.reshape(target.size)
     output[np.where(target == ignore_index)[0]] = ignore_index
     intersection = output[np.where(output == target)[0]]
-    area_intersection, _ = np.histogram(intersection, bins=np.arange(K+1))
-    area_output, _ = np.histogram(output, bins=np.arange(K+1))
-    area_target, _ = np.histogram(target, bins=np.arange(K+1))
+    area_intersection, _ = np.histogram(intersection, bins=np.arange(K + 1))
+    area_output, _ = np.histogram(output, bins=np.arange(K + 1))
+    area_target, _ = np.histogram(target, bins=np.arange(K + 1))
     area_union = area_output + area_target - area_intersection
     return area_intersection, area_union, area_target
+
 
 def precisionAndrecall(output, target, K, ignore_index=255):
     # 'K' classes, output and target sizes are N or N * L or N * H * W, each value in range 0 to K - 1.
@@ -209,11 +217,12 @@ def precisionAndrecall(output, target, K, ignore_index=255):
     target = target.reshape(target.size)
     output[np.where(target == ignore_index)[0]] = ignore_index
     intersection = output[np.where(output == target)[0]]
-    area_intersection, _ = np.histogram(intersection, bins=np.arange(K+1))
-    area_output, _ = np.histogram(output, bins=np.arange(K+1))
-    area_target, _ = np.histogram(target, bins=np.arange(K+1))
-    #area_union = area_output + area_target - area_intersection
+    area_intersection, _ = np.histogram(intersection, bins=np.arange(K + 1))
+    area_output, _ = np.histogram(output, bins=np.arange(K + 1))
+    area_target, _ = np.histogram(target, bins=np.arange(K + 1))
+    # area_union = area_output + area_target - area_intersection
     return area_intersection, area_output, area_target
+
 
 def dice(im1, im2, empty_score=1.0):
     """
@@ -239,7 +248,7 @@ def dice(im1, im2, empty_score=1.0):
     """
     im1 = np.squeeze(np.asarray(im1).astype(np.bool))
     im2 = np.squeeze(np.asarray(im2).astype(np.bool).squeeze())
-    
+
     if im1.shape != im2.shape:
         print(im1.shape)
         print(im2.shape)
@@ -253,6 +262,16 @@ def dice(im1, im2, empty_score=1.0):
     intersection = np.logical_and(im1, im2)
 
     return 2. * intersection.sum() / im_sum
+
+
+def AUC(output, target):
+    return auc(output, target).item()
+
+def Kappa(output, target):
+    cohenkappa = CohenKappa(num_classes=2)
+    # import ipdb;ipdb.set_trace()
+    return cohenkappa(output, target).item()
+
 
 def load_trained_model(model, loaded_dict):
     net_state_dict = model.state_dict()

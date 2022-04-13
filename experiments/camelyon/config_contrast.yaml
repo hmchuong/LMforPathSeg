@@ -17,8 +17,8 @@ dataset: # Required.
     data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16
     data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16/data.csv
     resize: [512, 512]
-  batch_size: 6
-  workers: 4
+  batch_size: 10
+  workers: 10
   mean: [0.845, 0.800, 0.820]
   std: [0.240, 0.277, 0.245]
   ignore_label: 255
@@ -40,7 +40,7 @@ trainer: # Required.
 
 saver:
   snapshot_dir: checkpoints
-  pretrain: ''
+  pretrain: 'checkpoints/last.pth'
 
 test:
   model: checkpoints/best.pth

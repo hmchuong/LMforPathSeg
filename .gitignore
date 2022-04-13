@@ -21,3 +21,4 @@ experiments/*/checkpoints/
 *.pth
 *.csv
 **/checkpoints
+*.out
