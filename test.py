@@ -73,8 +73,10 @@ def test(model, data_loader):
 
     for step, batch in enumerate(data_loader):
         # import pdb; pdb.set_trace()
-        # images, labels, name = batch
-        images, labels = batch
+        try:
+            images, labels, name = batch
+        except:
+            images, labels = batch
         images = images.cuda()
         labels = labels.long().cuda()
         with torch.no_grad():

@@ -44,7 +44,7 @@ saver:
   pretrain: ''
 
 test:
-  model: 'checkpoints/debug/best.pth'
+  model: 'checkpoints/unet_0412_unconnected_128/best.pth'
   # save_result: True
   # save_dir: outputs/unetresnext101_0404
 
