@@ -5,11 +5,19 @@ import numpy as np
 import scipy.ndimage as nd
 
 
-def get_criterion(cfg):
+def get_criterion(cfg, bce=False):
     cfg_criterion = cfg['criterion']
     aux_weight = cfg['net']['aux_loss']['loss_weight'] if cfg['net'].get('aux_loss', False) else 0
     ignore_index = cfg['dataset']['ignore_label']
-    
+
+    # Start: new BCE loss update
+    use_bce = cfg['criterion_bce']
+    bce_weight = cfg['net']['bce_loss']['loss_weight'] if cfg['net'].get('loss_weight', False) else 0
+    if use_bce and bce:
+        criterion = nn.BCEWithLogitsLoss()
+        return criterion
+    # End: new BCE loss update
+
     if cfg_criterion['type'] == 'ohem':
         criterion = CriterionOhem(aux_weight, ignore_index=ignore_index,
                                   **cfg_criterion['kwargs'])
@@ -271,3 +279,11 @@ class OhemCrossEntropy(nn.Module):
         pixel_losses = pixel_losses[mask][ind]
         pixel_losses = pixel_losses[pred < threshold]
         return pixel_losses.mean()
+
+# Start: new BCE loss update
+class BCELoss(nn.Module):
+    def __init__(self, aux_weight):
+        super(BCELoss, self).__init__()
+        self._aux_weight = aux_weight
+        self._criterion = nn.BCEWithLogitsLoss()
+# End: new BCE loss update

@@ -174,3 +174,44 @@ class Aux_Module(nn.Module):
     def forward(self, x):
         res = self.aux(x)
         return res
+
+# Start: new BCE loss update
+class Aux_Classification_Module(nn.Module):
+    def __init__(self, in_planes, num_classes=1, sync_bn=False):
+        super(Aux_Classification_Module, self).__init__()
+
+        norm_layer = get_syncbn() if sync_bn else nn.BatchNorm2d
+        self.cnn1 = nn.Sequential(
+                nn.Conv2d(in_planes, 512, kernel_size=1, stride=1),
+                norm_layer(512),
+                nn.ReLU(inplace=True),
+                nn.Dropout2d(0.1),
+                nn.Conv2d(512, 256, kernel_size=1, stride=1),
+                norm_layer(256),
+                nn.ReLU(inplace=True),
+                nn.Dropout2d(0.1),
+                nn.Conv2d(256, 128, kernel_size=1, stride=1),
+                norm_layer(128),
+                nn.ReLU(inplace=True),
+                nn.Dropout2d(0.1),
+                nn.Conv2d(128, num_classes, kernel_size=1, stride=1, padding=0, bias=True))
+        self.fc1 = nn.Sequential(
+            nn.Linear(2401,512),
+            nn.ReLU(),
+            nn.Dropout2d(0.1),
+            nn.Linear(512, 128),
+            nn.ReLU(),
+            nn.Dropout2d(0.1),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Dropout2d(0.1),
+            nn.Linear(64, 1)
+        )
+
+    def forward(self, x):
+        res = self.cnn1(x)
+        # import ipdb
+        # ipdb.set_trace()
+        res = self.fc1(res.view(res.size()[0], -1))
+        return res.flatten()
+# End: new BCE loss update

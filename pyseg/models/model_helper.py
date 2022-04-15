@@ -1,8 +1,10 @@
 
+import imp
 import torch.nn as nn
 from torch.nn import functional as F
 import importlib
 from .decoder_contrast import Aux_Module
+from .decoder_contrast import Aux_Classification_Module
 
 class ModelBuilder(nn.Module):
     def __init__(self, net_cfg):
@@ -14,6 +16,9 @@ class ModelBuilder(nn.Module):
         self.decoder = self._build_decoder(net_cfg['decoder'])
 
         self._use_auxloss = True if net_cfg.get('aux_loss', False) else False
+        # Start: new BCE loss update
+        self._use_bceloss = True if net_cfg.get('bce_loss', False) else False
+        # End: new BCE loss update
         self.fpn = True if net_cfg['encoder']["kwargs"].get('fpn', False) else False
         self.unet = "unet" in net_cfg['decoder']["type"]
         self.contrast = True if 'contrast' in net_cfg['decoder']['type'] else False
@@ -21,6 +26,12 @@ class ModelBuilder(nn.Module):
             cfg_aux = net_cfg['aux_loss']
             self.loss_weight = cfg_aux['loss_weight']
             self.auxor = Aux_Module(cfg_aux['aux_plane'], self._num_classes, self._sync_bn)
+        # Start: new BCE loss update
+        if self._use_bceloss:
+            cfg_aux = net_cfg['bce_loss']
+            self.loss_weight_classifier = cfg_aux['loss_weight']
+            self.auxor_classifier = Aux_Classification_Module(self.encoder.get_outplanes(), cfg_aux['num_classes'], self._sync_bn)
+        # End: new BCE loss update
 
     def _build_encoder(self, enc_cfg):
         enc_cfg['kwargs'].update({'sync_bn': self._sync_bn})
@@ -60,15 +71,25 @@ class ModelBuilder(nn.Module):
 
             pred_aux = self.auxor(feat1)
             pred_aux = F.upsample(input=pred_aux, size=(h, w), mode='bilinear', align_corners=True)
+
+            # Start: new BCE loss update
+            pred_class = None
+            if self._use_bceloss:
+                pred_class = self.auxor_classifier(feat2)
+            # End: new BCE loss update
             
             if self.contrast and self.training: 
                 res, contrast_loss = pred_head
                 res = F.upsample(input=res, size=(h, w), mode='bilinear', align_corners=True)
                 #fea = F.upsample(input=fea, size=(h, w), mode='bilinear', align_corners=True)
-                return [res, pred_aux, contrast_loss]
+                # Start: new BCE loss update
+                return [res, pred_aux, pred_class, contrast_loss]
+                # End: new BCE loss update
             else:
                 pred_head = F.upsample(input=pred_head, size=(h, w), mode='bilinear', align_corners=True)
-                return [pred_head, pred_aux]
+                # Start: new BCE loss update
+                return [pred_head, pred_class, pred_aux]
+                # End: new BCE loss update
         else:
             if self.unet:
                 x1, x2, x3, x4 = self.encoder(x)

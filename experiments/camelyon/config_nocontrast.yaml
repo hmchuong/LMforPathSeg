@@ -17,7 +17,7 @@ dataset: # Required.
     data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16
     data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16/data.csv
     resize: [512, 512]
-  batch_size: 10
+  batch_size: 4
   workers: 4
   mean: [0.845, 0.800, 0.820]
   std: [0.240, 0.277, 0.245]
@@ -52,12 +52,22 @@ criterion:
     thresh: 0.7
     min_kept: 100000
 
+criterion_bce:
+  type: bce
+  contrast_weight: 0.0
+  kwargs:
+    thresh: 0.7
+    min_kept: 100000
+
 net: # Required.
   num_classes: 2
   sync_bn: False
   aux_loss:
     aux_plane: 1024
     loss_weight: 0.4
+  bce_loss:
+    loss_weight: 0.4
+    num_classes: 1
   encoder:
     type: pyseg.models.resnet.resnet50
     kwargs:
