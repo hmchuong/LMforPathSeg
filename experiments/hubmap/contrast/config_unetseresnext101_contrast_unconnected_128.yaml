@@ -17,7 +17,7 @@ dataset: # Required.
     data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches
     data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches/data.csv
     resize: [320, 320]
-  batch_size: 6
+  batch_size: 3
   workers: 4
   mean: [0.845, 0.800, 0.820]
   std: [0.240, 0.277, 0.245]
@@ -31,7 +31,7 @@ trainer: # Required.
   optimizer:
     type: SGD
     kwargs:
-      lr: 0.00002
+      lr: 0.0005
       momentum: 0.9
       weight_decay: 0.0005
   lr_scheduler:
@@ -40,11 +40,11 @@ trainer: # Required.
       power: 0.9
 
 saver:
-  snapshot_dir: checkpoints/unet_0412_unconnected_128
+  snapshot_dir: checkpoints/unet_0413_unconnected_128
   pretrain: ''
 
 test:
-  model: 'checkpoints/unet_0412_unconnected_128/best.pth'
+  model: 'checkpoints/unet_0413_unconnected_128/best.pth'
   # save_result: True
   # save_dir: outputs/unetresnext101_0404
 
@@ -53,8 +53,7 @@ criterion:
   contrast_weight: 0.1
   kwargs:
     thresh: 0.7
-    min_kept: 20000
-    use_weight: True
+    min_kept: 100000
 
 net: # Required.
   num_classes: 2
@@ -70,7 +69,6 @@ net: # Required.
     type: pyseg.models.decoder_contrast.dec_unet_contrast
     kwargs:
       inner_planes: 320
-      queue_len: 2048
+      queue_len: 308
       contrast_type: 'unconnected'
       region_min: 128
-      
