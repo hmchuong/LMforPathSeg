@@ -7,7 +7,7 @@ import numpy as np
 from ..base import  ASPP, get_syncbn
 
 class dec_contrast(nn.Module):
-    def __init__(self, inner_planes, num_classes=19, temperature=0.2, queue_len=2975, contrast_type='default', region_min=128, **kwargs):
+    def __init__(self, inner_planes, num_classes=19, temperature=0.2, queue_len=2975, contrast_type='default', region_min=128, use_certainty=False, **kwargs):
         super().__init__()
         self.temperature = temperature
         self.queue_len = queue_len
@@ -16,6 +16,7 @@ class dec_contrast(nn.Module):
         self.inner_planes = inner_planes
         self.contrast_type = contrast_type
         self.region_min = region_min
+        self.use_certainty = use_certainty
         for i in range(num_classes):
             self.register_buffer("queue"+str(i),torch.randn(inner_planes, self.queue_len))
             self.register_buffer("ptr"+str(i),torch.zeros(1,dtype=torch.long))
@@ -56,26 +57,40 @@ class dec_contrast(nn.Module):
     def construct_region(self, fea, pred):
         
         bs = fea.shape[0]
+        certainty = pred.softmax(1)
+        certainty = (certainty[:, 0] - certainty[:, 1]).abs()
+        certainty = certainty.squeeze().view(bs, -1)
         pred = pred.max(1)[1].squeeze().view(bs, -1)  
+       
         val = torch.unique(pred)
         fea=fea.squeeze()
         fea = fea.view(bs, self.inner_planes,-1).permute(1,0,2)   
-    
-        new_fea = fea[:,pred==val[0]].mean(1).unsqueeze(0) 
+        if not self.use_certainty:
+            new_fea = fea[:,pred==val[0]].mean(1).unsqueeze(0)
+        else:
+            new_fea = (fea[:,pred==val[0]] * certainty[pred == val[0]]).sum(1) 
+            new_fea = new_fea/ (certainty[pred == val[0]]).sum()
+        new_fea = new_fea.unsqueeze(0)
         for i in val[1:]:
             if(i<19):
-                class_fea = fea[:,pred==i].mean(1).unsqueeze(0)   
+                if not self.use_certainty:
+                    class_fea = fea[:,pred==i].mean(1)  
+                else:
+                    class_fea = (fea[:,pred==i] * certainty[pred == i]).sum(1) 
+                    class_fea = class_fea/ (certainty[pred == i]).sum()
+                class_fea = class_fea.unsqueeze(0)
                 new_fea = torch.cat((new_fea,class_fea),dim=0)
-        
-        val = torch.tensor([i for i in val if i<19])
         # import pdb; pdb.set_trace()
+        val = torch.tensor([i for i in val if i<19])
         return new_fea, val.cuda()
 
     def construct_unconnected_region(self, fea, pred, threshold=128):
         
         bs = fea.shape[0]
+        certainty = pred.softmax(1)
+        certainty = (certainty[:, 0] - certainty[:, 1]).abs()
         pred = pred.max(1)[1].squeeze()  
-        # import pdb; pdb.set_trace() 
+        
         comp = measure.label(pred.cpu().numpy())
         val = []
         new_fea = []
@@ -86,12 +101,17 @@ class dec_contrast(nn.Module):
                 if mask.sum() < threshold:
                     continue
                 mask = torch.from_numpy(mask).cuda()
-                new_fea += [fea[i, :,mask].mean(1)]
+                if not self.use_certainty:
+                    new_fea += [fea[i, :,mask].mean(1)]
+                else:
+                    class_fea = (fea[i, :, mask] * certainty[i, mask]).sum(1) 
+                    class_fea = class_fea/ (certainty[i, mask]).sum()
+                    new_fea += [class_fea]
                 val += [1 if label != 0 else 0]
 
         new_fea = torch.stack(new_fea)
         val = torch.tensor(val)
-        # print("max comp", comp.max())
+
         return new_fea, val.cuda()
 
     def _compute_contrast_loss(self, l_pos, l_neg):
