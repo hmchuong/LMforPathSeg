@@ -10,6 +10,7 @@ import os
 
 import torch
 import torch.backends.cudnn as cudnn
+import torch.nn as nn
 
 from pyseg.models.model_helper import ModelBuilder
 
@@ -193,7 +194,7 @@ def train(model, optimizer, lr_scheduler, criterion, criterion_bce, data_loader,
         contrast_loss = preds[-1] / world_size
         loss = criterion(preds[:-1], labels) / world_size
         #TODO: Check how we can incorporate the classification loss - if included in loss, it blows up
-        # loss += classification_loss
+        loss += classification_loss*0.1
         # logger.info("loss: {:.4f}, contrast: {:.4f}".format(loss, contrast_loss))
         loss += cfg['criterion']['contrast_weight'] * contrast_loss
         optimizer.zero_grad()

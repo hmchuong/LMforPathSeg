@@ -14,7 +14,7 @@ def get_criterion(cfg, bce=False):
     use_bce = cfg['criterion_bce']
     bce_weight = cfg['net']['bce_loss']['loss_weight'] if cfg['net'].get('loss_weight', False) else 0
     if use_bce and bce:
-        criterion = nn.BCEWithLogitsLoss()
+        criterion = BCELoss(aux_weight=bce_weight)
         return criterion
     # End: new BCE loss update
 
@@ -285,5 +285,11 @@ class BCELoss(nn.Module):
     def __init__(self, aux_weight):
         super(BCELoss, self).__init__()
         self._aux_weight = aux_weight
-        self._criterion = nn.BCEWithLogitsLoss()
+        self.criterion = nn.BCEWithLogitsLoss()
+    def forward(self, prediction, label):
+        loss = self.criterion(prediction, label)
+        import ipdb
+        ipdb.set_trace()
+        return loss
+
 # End: new BCE loss update
