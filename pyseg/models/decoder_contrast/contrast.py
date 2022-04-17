@@ -66,7 +66,7 @@ class dec_contrast(nn.Module):
         fea=fea.squeeze()
         fea = fea.view(bs, self.inner_planes,-1).permute(1,0,2)   
         if not self.use_certainty:
-            new_fea = fea[:,pred==val[0]].mean(1).unsqueeze(0)
+            new_fea = fea[:,pred==val[0]].mean(1)
         else:
             new_fea = (fea[:,pred==val[0]] * certainty[pred == val[0]]).sum(1) 
             new_fea = new_fea/ (certainty[pred == val[0]]).sum()

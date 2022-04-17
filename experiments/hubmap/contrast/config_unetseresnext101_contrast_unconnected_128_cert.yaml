@@ -40,11 +40,11 @@ trainer: # Required.
       power: 0.9
 
 saver:
-  snapshot_dir: checkpoints/unet_0416_def
+  snapshot_dir: checkpoints/unet_0416_unconnected_128_cert
   pretrain: ''
 
 test:
-  model: 'checkpoints/unet_0416_def/best.pth'
+  model: 'checkpoints/unet_0416_unconnected_128_cert/best.pth'
   # save_result: True
   # save_dir: outputs/unetresnext101_0404
 
@@ -70,6 +70,6 @@ net: # Required.
     kwargs:
       inner_planes: 320
       queue_len: 308
-      contrast_type: 'default'
+      contrast_type: 'unconnected'
       region_min: 128
-      use_certainty: False
+      use_certainty: True

@@ -1,23 +1,20 @@
-import glob
+
 import numpy as np
-import random
-from torch.utils.data import Dataset
 from PIL import Image
-import PIL
+
 import copy
 from torchvision.transforms import transforms
 import os
 from PIL import ImageFile
 import cv2
 import os
-import h5py
+
 import pandas as pd
 import torch.utils.data as data_utils
-import torch
+
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import DataLoader
 
-from . import augmentation as psp_trsform
 import albumentations as A
 import albumentations.pytorch as AP
 
@@ -92,13 +89,14 @@ class HubmapDataset(data_utils.Dataset):
         image = Image.open(path_dir + '/' + self.X[idx])
         mask = cv2.imread(path_dir + '/' + self.y[idx], cv2.IMREAD_GRAYSCALE)
         image = np.array(image)
-        mask = (mask > 0).astype(int)
+        mask = (mask > 128).astype(int)
 
-        transformed = self.transform(image=image, mask=mask)
-        image = transformed["image"]
-        mask = transformed["mask"]
-        image = image.squeeze(0)
-        mask = mask.squeeze()
+        if self.transform:
+            transformed = self.transform(image=image, mask=mask)
+            image = transformed["image"]
+            mask = transformed["mask"]
+            image = image.squeeze(0)
+            mask = mask.squeeze()
         # logger.info(mask.sum() / (mask.shape[0] * mask.shape[1]))
         if self.return_name:
             return image, mask, self.X[idx].split('/')[-1]
@@ -152,5 +150,26 @@ def build_hubmaploader(split, all_cfg):
         
         loader = DataLoader(dset, batch_size=batch_size if (split == 'train') else 1, num_workers=workers if (split == 'train') else 1, shuffle=(split == 'train'))
     return loader
+
+
+if __name__ == "__main__":
+    data_root = "/fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches"
+    split = "train"
+
+    dset = HubmapDataset(data_root, split, None, None, return_name=False)
+    areas = []
+    from skimage import measure
+    for i, (_, label) in enumerate(dset):
+        regions = measure.label(label)
+        H, W = label.shape
+        for label_num in np.unique(regions):
+            if label_num == 0: continue
+            area = (regions == label_num).sum()
+            # area /= ( H * W)
+            areas += [area]
+        print("Done", i)
+    import pdb; pdb.set_trace() 
+
+
 
     
