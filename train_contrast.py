@@ -108,6 +108,13 @@ def main():
         train(model, optimizer, lr_scheduler, criterion, trainloader, epoch)
         gc.collect()
         # import pdb; pdb.set_trace()
+        # emb = torch.cat([model.decoder.queue0, model.decoder.queue1], dim=1)
+        # emb = emb.permute(1, 0)
+        # label = torch.ones((616,))
+        # label[:308] = 0
+        # writer.add_embedding(emb, metadata=label)
+        # writer.close()
+
         # print('After training: RAM memory % used:', psutil.virtual_memory()[2])
         # Validataion
         state = {'epoch': epoch,
@@ -236,7 +243,9 @@ def validate(model, data_loader, epoch):
     intersection_meter = AverageMeter()
     union_meter = AverageMeter()
     target_meter = AverageMeter()
-    dice_meter = AverageMeter()
+    # dice_meter = AverageMeter()
+    dice_inter = 0
+    dice_union = 0
 
     for step, batch in enumerate(data_loader):
         images, labels = batch
@@ -251,7 +260,9 @@ def validate(model, data_loader, epoch):
         target = labels.cpu().numpy()
 
         # start to calculate miou
-        dice_coeff = dice(output, target)
+        i, u = dice(output, target)
+        dice_inter += i 
+        dice_union += u
         intersection, union, target = intersectionAndUnion(output, target, num_classes, ignore_label)
 
         # gather all validation information
@@ -270,7 +281,7 @@ def validate(model, data_loader, epoch):
         intersection_meter.update(intersection)
         union_meter.update(union)
         target_meter.update(target)
-        dice_meter.update(dice_coeff)
+        # dice_meter.update(dice_coeff)
         if step % 20 == 0:
             logger.info('iter = {} of {} completed'
                         .format(step, len(data_loader)))
@@ -278,8 +289,8 @@ def validate(model, data_loader, epoch):
     iou_class = intersection_meter.sum / (union_meter.sum + 1e-10)
     accuracy_class = intersection_meter.sum / (target_meter.sum + 1e-10)
     mIoU = np.mean(iou_class)
-    mDice = dice_meter.avg
-    
+    # mDice = dice_meter.avg
+    mDice = 2. * dice_inter / dice_union
     if rank == 0:
         logger.info('=========epoch[{}]=========,Val mIoU = {}, Val mDice = {}'.format(epoch, mIoU, mDice))
     # torch.save(mIoU, 'eval_metric.pth.tar')

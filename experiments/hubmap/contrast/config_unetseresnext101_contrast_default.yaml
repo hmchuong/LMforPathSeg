@@ -40,13 +40,13 @@ trainer: # Required.
       power: 0.9
 
 saver:
-  snapshot_dir: checkpoints/unet_0416_def
-  pretrain: ''
+  snapshot_dir: checkpoints/debug_embedding
+  pretrain: '/fs/classhomes/spring2022/cmsc828l/c828l028/RegionContrast-Med/experiments/hubmap/nocontrast/checkpoints/unetresnext101_0409_zeros/best.pth'
 
 test:
-  model: 'checkpoints/unet_0416_def/best.pth'
-  # save_result: True
-  # save_dir: outputs/unetresnext101_0404
+  model: ''
+  save_result: True
+  save_dir: outputs/unet_0416_def
 
 criterion:
   type: ohem

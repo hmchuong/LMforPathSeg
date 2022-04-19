@@ -40,11 +40,11 @@ trainer: # Required.
       power: 0.9
 
 saver:
-  snapshot_dir: checkpoints/unet_0415_def_cert
+  snapshot_dir: checkpoints/unet_0419_def_cert
   pretrain: ''
 
 test:
-  model: 'checkpoints/unet_0415_def_cert/best.pth'
+  model: 'checkpoints/unet_0419_def_cert/best.pth'
   # save_result: True
   # save_dir: outputs/unetresnext101_0404
 

@@ -70,7 +70,8 @@ def test(model, data_loader):
     dice_meter = AverageMeter()
     AUC_meter = AverageMeter()
     Kappa_meter = AverageMeter()
-
+    dice_inter = 0
+    dice_union = 0
     for step, batch in enumerate(data_loader):
         # import pdb; pdb.set_trace()
         try:
@@ -97,15 +98,19 @@ def test(model, data_loader):
             cv2.imwrite(os.path.join(cfg['test']['save_dir'], name[0]), output[0] * 255)
 
         # start to calculate miou
-        dice_coeff = dice(output, target)
-        # with open("val_dlv3_zeros.csv", "a") as f:
-        #     f.write(name[0] + "\t" + str(dice_coeff) + "\n")
+        # dice_coeff = dice(output, target)
+        # import pdb; pdb.set_trace()
+        i, u = dice(output, target)
+        dice_inter += i 
+        dice_union += u
+        # with open("val_def.csv", "a") as f:
+        #     f.write(name[0] + "," + str(dice_coeff) + "\n")
         intersection, union, target = intersectionAndUnion(output, target, num_classes, ignore_label)
 
         intersection_meter.update(intersection)
         union_meter.update(union)
         target_meter.update(target)
-        dice_meter.update(dice_coeff)
+        # dice_meter.update(dice_coeff)
         if kappa == kappa:
             Kappa_meter.update(kappa)
         if auc == auc:
@@ -119,7 +124,7 @@ def test(model, data_loader):
     mIoU = np.mean(iou_class)
     mAcc = np.mean(accuracy_class)
     allAcc = sum(intersection_meter.sum) / (sum(target_meter.sum) + 1e-10)
-    mDice = dice_meter.avg
+    mDice = 2. * dice_inter / dice_union #dice_meter.avg
     mAUC = AUC_meter.avg
     kappa = Kappa_meter.avg
 
@@ -128,7 +133,6 @@ def test(model, data_loader):
                                                                                                mDice, mAUC, kappa))
     for i in range(num_classes):
         logger.info('Class_{} result: iou/accuracy {:.4f}/{:.4f}'.format(i, iou_class[i], accuracy_class[i]))
-
 
 if __name__ == '__main__':
     main()

@@ -1,9 +1,11 @@
+from glob import glob
 import torch
 import gc
 import torch.nn as nn
 from torch.nn import functional as F
 from skimage import measure
 import numpy as np
+# from tensorboardX import SummaryWriter
 from ..base import  ASPP, get_syncbn
 
 class dec_contrast(nn.Module):
@@ -21,6 +23,9 @@ class dec_contrast(nn.Module):
             self.register_buffer("queue"+str(i),torch.randn(inner_planes, self.queue_len))
             self.register_buffer("ptr"+str(i),torch.zeros(1,dtype=torch.long))
             exec("self.queue"+str(i) + '=' + 'nn.functional.normalize(' + "self.queue"+str(i) + ',dim=0)')
+        
+        # self.writer = SummaryWriter(comment='hubmap_embedding_default_0418')
+        # self.global_step = 0
     
     @torch.no_grad()
     def _dequeue_and_enqueue(self,keys,vals,cat, bs):
@@ -32,6 +37,17 @@ class dec_contrast(nn.Module):
         eval("self.queue"+str(cat))[:,ptr] = keys
         ptr = (ptr + batch_size) % self.queue_len
         eval("self.ptr"+str(cat))[0] = ptr
+
+        # Store to writer
+        # emb = keys.unsqueeze(0)
+        # label = [cat]
+        # self.writer.add_embedding(emb, metadata=label, global_step=self.global_step)
+        # self.global_step += 1
+        # with open("embedding_nocontrast.tsv", "a") as f:
+        #     f.write('\t'.join([str(x) for x in keys.cpu().numpy().tolist()]) + "\n")
+        # with open("embedding_nocontrast_label.txt", "a") as f:
+        #     f.write(str(cat) + "\n")
+
         del keys, ptr
         gc.collect()
 
@@ -43,6 +59,14 @@ class dec_contrast(nn.Module):
         batch_size = keys.shape[0]
         keys = keys.permute(1, 0)
         ptr = int(eval("self.ptr" + str(cat)))
+
+        # label_f = open("embedding_uncon128_label.txt", "a")
+        # with open("embedding_uncon128.tsv", "a") as f:
+        #     for i in range(keys.shape[1]):
+        #         f.write('\t'.join([str(x) for x in keys[:, i].cpu().numpy().tolist()]) + "\n")
+        #         label_f.write(str(cat) + "\n")
+        # label_f.close()
+
         if ptr + batch_size > self.queue_len:
             # import pdb; pdb.set_trace()
             batch_size = self.queue_len - ptr
@@ -50,6 +74,8 @@ class dec_contrast(nn.Module):
         eval("self.queue"+str(cat))[:, ptr: ptr + batch_size] = keys.detach()
         ptr = (ptr + batch_size) % self.queue_len
         eval("self.ptr"+str(cat))[0] = ptr
+
+        
 
         del keys, ptr
         gc.collect()

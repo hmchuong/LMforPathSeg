@@ -22,3 +22,5 @@ experiments/*/checkpoints/
 *.csv
 **/checkpoints
 *.out
+**/runs/*
+**/embedding*
