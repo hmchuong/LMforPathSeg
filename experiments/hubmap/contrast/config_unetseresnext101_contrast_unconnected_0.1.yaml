@@ -3,21 +3,21 @@ dataset: # Required.
   train:
     data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches
     data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches/data.csv
-    resize: [512, 512]
+    resize: [320, 320]
     rand_resize_crop: 
       scale: [0.8, 1.2]
-      size: [384, 384]
+      size: [256, 256]
     rand_rotation: [-90, 90]
     flip: True
   val:
     data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches
     data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches/data.csv
-    resize: [512, 512]
+    resize: [320, 320]
   test:
     data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches
     data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches/data.csv
-    resize: [512, 512]
-  batch_size: 6
+    resize: [320, 320]
+  batch_size: 3
   workers: 4
   mean: [0.845, 0.800, 0.820]
   std: [0.240, 0.277, 0.245]
@@ -27,10 +27,11 @@ trainer: # Required.
   epochs: 100
   start_epochs: 0
   eval_on: True
+  metric: 'mDice'
   optimizer:
     type: SGD
     kwargs:
-      lr: 0.01
+      lr: 0.0005
       momentum: 0.9
       weight_decay: 0.0005
   lr_scheduler:
@@ -39,11 +40,13 @@ trainer: # Required.
       power: 0.9
 
 saver:
-  snapshot_dir: checkpoints
+  snapshot_dir: checkpoints/unet_0413_unconnected_0.1
   pretrain: ''
 
 test:
-  model: 'checkpoints/best.pth'
+  model: 'checkpoints/unet_0413_unconnected_0.1/best.pth'
+  # save_result: True
+  # save_dir: outputs/unetresnext101_0404
 
 criterion:
   type: ohem
@@ -56,18 +59,17 @@ net: # Required.
   num_classes: 2
   sync_bn: False
   aux_loss:
-    aux_plane: 1024
+    aux_plane: 2048
     loss_weight: 0.4
   encoder:
-    type: pyseg.models.resnet.resnet50
+    type: pyseg.models.seresnext.seresnext101
     kwargs:
-      multi_grid: True
-      zero_init_residual: True
-      replace_stride_with_dilation: [False, True, True]  #layer0...1 is fixed, layer2...4
+      pretrained: 'imagenet'
   decoder:
-    type: pyseg.models.decoder_contrast.dec_deeplabv3_contrast
+    type: pyseg.models.decoder_contrast.dec_unet_contrast
     kwargs:
-      inner_planes: 256
-      dilations: [12, 24, 36]
-      queue_len: 705
+      inner_planes: 320
+      queue_len: 308
+      contrast_type: 'unconnected'
+      region_min: 0.1
       

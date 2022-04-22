@@ -6,8 +6,8 @@ from .contrast import dec_contrast
 
 class dec_deeplabv3_contrast(dec_contrast):
    
-    def __init__(self, in_planes, num_classes=19, inner_planes=256, sync_bn=False, dilations=(12, 24, 36), temperature=0.2, queue_len=2975):
-        super(dec_deeplabv3_contrast, self).__init__(inner_planes, num_classes, temperature, queue_len)
+    def __init__(self, in_planes, num_classes=19, inner_planes=256, sync_bn=False, dilations=(12, 24, 36), temperature=0.2, queue_len=2975, **kwargs):
+        super(dec_deeplabv3_contrast, self).__init__(inner_planes, num_classes, temperature, queue_len, **kwargs)
 
         norm_layer = get_syncbn() if sync_bn else nn.BatchNorm2d
         self.aspp = ASPP(in_planes, inner_planes=inner_planes, sync_bn=sync_bn, dilations=dilations)

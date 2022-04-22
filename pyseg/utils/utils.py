@@ -253,16 +253,16 @@ def dice(im1, im2, empty_score=1.0):
         print(im1.shape)
         print(im2.shape)
         raise ValueError("Shape mismatch: im1 and im2 must have the same shape.")
-
+    # import pdb; pdb.set_trace()
     im_sum = im1.sum() + im2.sum()
     if im_sum == 0:
-        return empty_score
+        return 0, 0
 
     # Compute Dice coefficient
     intersection = np.logical_and(im1, im2)
-
-    return 2. * intersection.sum() / im_sum
-
+    # import pdb; pdb.set_trace()
+    return intersection.sum(), im_sum
+    # return 2 * intersection.sum() / im_sum
 
 def AUC(output, target):
     return auc(output, target).item()

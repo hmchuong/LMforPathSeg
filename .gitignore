@@ -19,5 +19,12 @@ experiments/*/checkpoints/
 *slurm_*
 **/log_*.txt
 *.pth
+*.csv
+**/checkpoints
 *.out
+<<<<<<< HEAD
 experiments/camelyon/config_plot*.yaml
+=======
+**/runs/*
+**/embedding*
+>>>>>>> 68fd43650011bc674dd8f8d3bca6d8a4aa19e8d6

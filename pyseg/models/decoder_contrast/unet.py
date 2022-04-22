@@ -98,7 +98,7 @@ class DecodeBlock(nn.Module):
 class dec_unet_contrast(dec_contrast):
    
     def __init__(self, num_classes=2, inner_planes=320, temperature=0.2, queue_len=2975, **kwargs):
-        super(dec_unet_contrast, self).__init__(inner_planes, num_classes, temperature, queue_len)
+        super(dec_unet_contrast, self).__init__(inner_planes, num_classes, temperature, queue_len, **kwargs)
 
         # bottleneck
         self.center  = CenterBlock(2048, 512)

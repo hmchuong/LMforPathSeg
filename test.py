@@ -6,6 +6,7 @@ import gc
 # import psutil
 import numpy as np
 import os
+import cv2
 
 import torch
 import torch.backends.cudnn as cudnn
@@ -47,7 +48,7 @@ def main():
     model.to(device)
 
     state_dict = torch.load(cfg['test']['model'], map_location='cpu')['model_state']
-    logger.info("Load trained model from ", str(cfg['test']['model']))
+    logger.info("Load trained model from {}".format(str(cfg['test']['model'])))
     load_trained_model(model, state_dict)
 
     # logger.info(model)
@@ -69,33 +70,51 @@ def test(model, data_loader):
     dice_meter = AverageMeter()
     AUC_meter = AverageMeter()
     Kappa_meter = AverageMeter()
-
+    dice_inter = 0
+    dice_union = 0
     for step, batch in enumerate(data_loader):
+<<<<<<< HEAD
         images, labels, _ = batch
+=======
+        # import pdb; pdb.set_trace()
+        try:
+            images, labels, name = batch
+        except:
+            images, labels = batch
+>>>>>>> 68fd43650011bc674dd8f8d3bca6d8a4aa19e8d6
         images = images.cuda()
         labels = labels.long().cuda()
         with torch.no_grad():
             preds = model(images)
 
         # get the output produced by model
-        # import ipdb;
-        # ipdb.set_trace()
-        preds = preds[0] if cfg['net'].get('aux_loss', False) else preds
-        output = preds.data.max(1)[1].cpu()
+        output = preds[0] if cfg['net'].get('aux_loss', False) else preds
+        output = output.data.max(1)[1].cpu()
         target = labels.cpu()
+
         auc = AUC(output.ravel(), target.ravel())
         kappa = Kappa(output.ravel(),target.ravel())
         output = output.numpy()
         target = target.numpy()
 
+        if cfg['test'].get('save_result', False):
+            os.makedirs(cfg['test']['save_dir'], exist_ok=True)
+            cv2.imwrite(os.path.join(cfg['test']['save_dir'], name[0]), output[0] * 255)
+
         # start to calculate miou
-        dice_coeff = dice(output, target)
+        # dice_coeff = dice(output, target)
+        # import pdb; pdb.set_trace()
+        i, u = dice(output, target)
+        dice_inter += i 
+        dice_union += u
+        # with open("val_def.csv", "a") as f:
+        #     f.write(name[0] + "," + str(dice_coeff) + "\n")
         intersection, union, target = intersectionAndUnion(output, target, num_classes, ignore_label)
 
         intersection_meter.update(intersection)
         union_meter.update(union)
         target_meter.update(target)
-        dice_meter.update(dice_coeff)
+        # dice_meter.update(dice_coeff)
         if kappa == kappa:
             Kappa_meter.update(kappa)
         if auc == auc:
@@ -109,7 +128,7 @@ def test(model, data_loader):
     mIoU = np.mean(iou_class)
     mAcc = np.mean(accuracy_class)
     allAcc = sum(intersection_meter.sum) / (sum(target_meter.sum) + 1e-10)
-    mDice = dice_meter.avg
+    mDice = 2. * dice_inter / dice_union #dice_meter.avg
     mAUC = AUC_meter.avg
     kappa = Kappa_meter.avg
 
@@ -118,7 +137,6 @@ def test(model, data_loader):
                                                                                                mDice, mAUC, kappa))
     for i in range(num_classes):
         logger.info('Class_{} result: iou/accuracy {:.4f}/{:.4f}'.format(i, iou_class[i], accuracy_class[i]))
-
 
 if __name__ == '__main__':
     main()

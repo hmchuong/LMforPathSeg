@@ -3,6 +3,7 @@ import os.path as osp
 import yaml
 import logging
 import gc
+# import psutil
 import time
 import numpy as np
 import os
@@ -18,7 +19,7 @@ import torch.distributed as dist
 from pyseg.utils.loss_helper import get_criterion
 from pyseg.utils.lr_helper import get_scheduler, get_optimizer
 
-from pyseg.utils.utils import AverageMeter, intersectionAndUnion, init_log, load_trained_model
+from pyseg.utils.utils import AverageMeter, intersectionAndUnion, init_log, load_trained_model, dice
 from pyseg.utils.utils import set_random_seed, get_world_size, get_rank, is_distributed
 from pyseg.dataset.builder import get_loader
 from pyseg.dataset.camelyon16 import Camelyon16Dataset
@@ -112,6 +113,13 @@ def main():
         train(model, optimizer, lr_scheduler, criterion, trainloader, epoch)
         gc.collect()
         # import pdb; pdb.set_trace()
+        # emb = torch.cat([model.decoder.queue0, model.decoder.queue1], dim=1)
+        # emb = emb.permute(1, 0)
+        # label = torch.ones((616,))
+        # label[:308] = 0
+        # writer.add_embedding(emb, metadata=label)
+        # writer.close()
+
         # print('After training: RAM memory % used:', psutil.virtual_memory()[2])
         # Validataion
         state = {'epoch': epoch,
@@ -122,7 +130,10 @@ def main():
         if cfg_trainer["eval_on"]:
             if rank == 0:
                 logger.info("start evaluation")
-            prec = validate(model, valloader, epoch)
+            mIoU, mDice = validate(model, valloader, epoch)
+            prec = mDice if cfg_trainer.get('metric', 'mIoU') == 'mDice' else mIoU
+            # print('After validate: RAM memory % used:', psutil.virtual_memory()[2])
+            # import pdb; pdb.set_trace()
             if rank == 0:
                 if prec > best_prec:
                     best_prec = prec
@@ -212,8 +223,8 @@ def train(model, optimizer, lr_scheduler, criterion, data_loader, epoch):
             mIoU = np.mean(iou_class[1:])
             mAcc = np.mean(accuracy_class[1:])
             logger.info('iter = {} of {} completed, LR = {} loss = {}, mIoU = {}'
-                        .format(i_iter, cfg['trainer']['epochs'] * len(data_loader), lr, losses.avg, mIoU))
-
+                        .format(i_iter, cfg['trainer']['epochs']*len(data_loader), lr, losses.avg, mIoU))
+            # logger.info('After training: RAM memory used: {} %'.format(psutil.virtual_memory()[2]))
         del preds, output, target, images, labels
         gc.collect()
 
@@ -239,6 +250,9 @@ def validate(model, data_loader, epoch):
     intersection_meter = AverageMeter()
     union_meter = AverageMeter()
     target_meter = AverageMeter()
+    # dice_meter = AverageMeter()
+    dice_inter = 0
+    dice_union = 0
 
     for step, batch in enumerate(data_loader):
         images, labels, indexes = batch
@@ -253,6 +267,9 @@ def validate(model, data_loader, epoch):
         target = labels.cpu().numpy()
 
         # start to calculate miou
+        i, u = dice(output, target)
+        dice_inter += i 
+        dice_union += u
         intersection, union, target = intersectionAndUnion(output, target, num_classes, ignore_label)
 
         # gather all validation information
@@ -271,6 +288,7 @@ def validate(model, data_loader, epoch):
         intersection_meter.update(intersection)
         union_meter.update(union)
         target_meter.update(target)
+        # dice_meter.update(dice_coeff)
         if step % 20 == 0:
             logger.info('iter = {} of {} completed'
                         .format(step, len(data_loader)))
@@ -278,12 +296,19 @@ def validate(model, data_loader, epoch):
     iou_class = intersection_meter.sum / (union_meter.sum + 1e-10)
     accuracy_class = intersection_meter.sum / (target_meter.sum + 1e-10)
     mIoU = np.mean(iou_class)
-
+    # mDice = dice_meter.avg
+    mDice = 2. * dice_inter / dice_union
     if rank == 0:
+<<<<<<< HEAD
         logger.info('=========epoch[{}]=========,Val mIoU = {}'.format(epoch, mIoU))
         print('=========epoch[{}]=========,Val mIoU = {}'.format(epoch, mIoU))
     torch.save(mIoU, 'eval_metric.pth.tar')
     return mIoU
+=======
+        logger.info('=========epoch[{}]=========,Val mIoU = {}, Val mDice = {}'.format(epoch, mIoU, mDice))
+    # torch.save(mIoU, 'eval_metric.pth.tar')
+    return mIoU, float(mDice)
+>>>>>>> 68fd43650011bc674dd8f8d3bca6d8a4aa19e8d6
 
 
 def update_trainset(model, data_loader, epoch):
