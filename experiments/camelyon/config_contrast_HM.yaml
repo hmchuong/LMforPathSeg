@@ -25,7 +25,7 @@ dataset: # Required.
 
 trainer: # Required.
   epochs: 100
-  HM: False
+  HM: True
   start_epochs: 0
   eval_on: True
   optimizer:
@@ -40,15 +40,16 @@ trainer: # Required.
       power: 0.9
 
 saver:
-  snapshot_dir: checkpoints_noncontrast_newDS
-  pretrain: 'checkpoints_noncontrast_newDS/best.pth'
-  retrieve_pretrain_best: False
+  snapshot_dir: checkpoints_contrast_0-1-1-1_HM
+  pretrain: 'checkpoints_contrast_0-1-1-1_HM/last.pth'
+  retrieve_pretrain_best: True
+
 test:
-  model: checkpoints_noncontrast/best.pth
+  model: checkpoints_contrast_0-1-1-1_HM/best.pth
 
 criterion:
   type: ohem
-  contrast_weight: 0
+  contrast_weight: 0.1
   kwargs:
     thresh: 0.7
     min_kept: 100000

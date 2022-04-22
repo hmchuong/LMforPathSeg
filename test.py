@@ -36,7 +36,7 @@ def main():
     cudnn.enabled = True
     cudnn.benchmark = True
 
-    logger.info(cfg)
+    # logger.info(cfg)
 
     # Create network.
     model = ModelBuilder(cfg['net'])
@@ -50,7 +50,7 @@ def main():
     logger.info("Load trained model from ", str(cfg['test']['model']))
     load_trained_model(model, state_dict)
 
-    logger.info(model)
+    # logger.info(model)
 
     testloader = get_loader(cfg, splits=['test'])
 
@@ -71,7 +71,7 @@ def test(model, data_loader):
     Kappa_meter = AverageMeter()
 
     for step, batch in enumerate(data_loader):
-        images, labels = batch
+        images, labels, _ = batch
         images = images.cuda()
         labels = labels.long().cuda()
         with torch.no_grad():

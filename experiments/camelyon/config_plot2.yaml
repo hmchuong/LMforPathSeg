@@ -40,15 +40,16 @@ trainer: # Required.
       power: 0.9
 
 saver:
-  snapshot_dir: checkpoints_noncontrast_newDS
-  pretrain: 'checkpoints_noncontrast_newDS/best.pth'
+  snapshot_dir: checkpoints_contast_HM_0-1-1-1
+  pretrain: 'checkpoints_contast_HM_0-1-1-1/best.pth'
   retrieve_pretrain_best: False
+
 test:
-  model: checkpoints_noncontrast/best.pth
+  model: checkpoints_contast_HM_0-1-1-1/best.pth
 
 criterion:
   type: ohem
-  contrast_weight: 0
+  contrast_weight: 0.1
   kwargs:
     thresh: 0.7
     min_kept: 100000
