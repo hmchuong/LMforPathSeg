@@ -29,10 +29,14 @@ import logging
 
 logger = init_log('internal', logging.INFO)
 
+np.random.seed(0)
+
 
 class Camelyon16Dataset(data_utils.Dataset):
 
-    def __init__(self, path=None, mode="train", transform=None, cfg=None, lamel_idx=None):
+    def __init__(self, path=None, mode="train", transform=None, cfg=None, lamel_idx=None, whole_images=None,
+                 whole_rles=None,
+                 custom_idx=None):
         super().__init__()
         self.transform = transform
         self.return_image_rle = False
@@ -40,21 +44,25 @@ class Camelyon16Dataset(data_utils.Dataset):
         self.cfg = cfg
 
         print('Loading Camelyon16 {} dataset...'.format(mode))
-
         # Open the files
-        df = pd.read_csv(path + '/data.csv')
-
+        df = pd.read_csv(cfg["train"]["data_root"] + '/data.csv')
+        if mode == "hard_mining":
+            images = whole_images
+            rles = whole_rles
+            if custom_idx is not None:
+                images = images[custom_idx]
+                rles = rles[custom_idx]
         if mode == 'train':
             df = df[df['filename_img'].str.count("^tumor_0(28|29|30|31|34|36|39|47|55|61)_.*") > 0]
             df = self.__filter_data(df, bin_counts=4, bin_ratio=[0, 1, 1, 1])
+            print("bin_ratio=[0, 1, 1, 1]")
             images = df['filename_img'].to_numpy()
             rles = df['filename_rle'].to_numpy()
-
 
         elif mode == 'val':
             df = df[df['std_img'] > self.config["STD_THRESHOLD"]]
             df = df[df['filename_img'].str.count("^tumor_0(19|23).*") > 0]
-            df = self.__filter_data(df, bin_counts=4, bin_ratio=[0, 1, 1, 1])
+            df = self.__filter_data(df, bin_counts=4, bin_ratio=[1, 1, 1, 1])
             images = df['filename_img'].to_numpy()
             rles = df['filename_rle'].to_numpy()
 
@@ -63,7 +71,7 @@ class Camelyon16Dataset(data_utils.Dataset):
             self.return_image_rle = False
             df = df[df['filename_img'].str.count("^tumor_0(14|16).*") > 0]
             df = df.sample(frac=1).reset_index(drop=True)  # shuffle and then sample
-            df = self.__filter_data(df, bin_counts=4, bin_ratio=[0, 1, 1, 1])
+            df = self.__filter_data(df, bin_counts=4, bin_ratio=[1, 1, 1, 1])
             self.test_df = df
             images = df['filename_img'].to_numpy()
             rles = df['filename_rle'].to_numpy()
@@ -86,8 +94,11 @@ class Camelyon16Dataset(data_utils.Dataset):
 
         self.X = images
         self.y = rles
+        self.whole_images = images
+        self.whole_rles = rles
+
         # self.path = path
-        self.path = os.path.join(path, "lamels")
+        self.path = os.path.join(cfg["train"]["data_root"], "lamels")
 
         print('Loaded {} dataset with {} samples'.format(mode, len(self.X)))
         print("# " * 50)
@@ -114,7 +125,7 @@ class Camelyon16Dataset(data_utils.Dataset):
             bin_data = data[data['binned'] == bin]
             if not bin_data.empty:
                 data_balanced_list.append(bin_data.sample(int(patch_number * (bin_ratio[bin] / sum(bin_ratio))),
-                                                          replace=True))
+                                                          replace=True, random_state=1))
         data_balanced = pd.concat(data_balanced_list, axis=0)
 
         return data_balanced
@@ -141,7 +152,7 @@ class Camelyon16Dataset(data_utils.Dataset):
                     "thumbnail": thumbnail,
                     "label": label, "rle": rle, "filename_img": self.X[idx],
                     "mask": mask}
-        return image, mask
+        return image, mask, idx
         # return image, mask, self.X[idx].split('/')[-1]
 
     def __len__(self):

@@ -9,6 +9,7 @@ import numpy as np
 import os
 
 import torch
+from torch.utils.data import DataLoader
 import torch.backends.cudnn as cudnn
 
 from pyseg.models.model_helper import ModelBuilder
@@ -21,6 +22,7 @@ from pyseg.utils.lr_helper import get_scheduler, get_optimizer
 from pyseg.utils.utils import AverageMeter, intersectionAndUnion, init_log, load_trained_model, dice
 from pyseg.utils.utils import set_random_seed, get_world_size, get_rank, is_distributed
 from pyseg.dataset.builder import get_loader
+from pyseg.dataset.camelyon16 import Camelyon16Dataset
 
 parser = argparse.ArgumentParser(description="Pytorch Semantic Segmentation")
 parser.add_argument("--config", type=str, default="config.yaml")
@@ -35,7 +37,6 @@ def main():
     args = parser.parse_args()
 
     cfg = yaml.load(open(args.config, 'r'), Loader=yaml.Loader)
-
     cudnn.enabled = True
     cudnn.benchmark = True
 
@@ -106,6 +107,9 @@ def main():
 
     # Start to train model
     for epoch in range(cfg_trainer['start_epochs'], cfg_trainer['epochs']):
+        if cfg_trainer["HM"] and epoch % 20 == 0:
+            trainloader = update_trainset(model, trainloader, epoch)
+
         # Training
         gc.collect()
         train(model, optimizer, lr_scheduler, criterion, trainloader, epoch)
@@ -142,6 +146,7 @@ def main():
                              'optimizer_state': optimizer.state_dict()}
                     torch.save(state, osp.join(cfg['saver']['snapshot_dir'], 'best.pth'))
                     logger.info('Currently, the best val result is: {}'.format(best_prec))
+                    print('Currently, the best val result is: {}'.format(best_prec))
         # note we also save the last epoch checkpoint
         if epoch == (cfg_trainer['epochs'] - 1) and rank == 0:
             state = {'epoch': epoch,
@@ -169,12 +174,13 @@ def train(model, optimizer, lr_scheduler, criterion, data_loader, epoch):
         lr = lr_scheduler.get_lr()
         lr_scheduler.step()
 
-        images, labels = batch
+        images, labels, _ = batch
+        if images.shape[0] <= 1:
+            continue
         images = images.cuda()
         labels = labels.long().cuda()
 
         preds = model(images)
-
 
         contrast_loss = preds[-1] / world_size
         loss = criterion(preds[:-1], labels) / world_size
@@ -183,7 +189,6 @@ def train(model, optimizer, lr_scheduler, criterion, data_loader, epoch):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-
 
         # get the output produced by model
         output = preds[0] if cfg['net'].get('aux_loss', False) else preds[0]
@@ -231,6 +236,7 @@ def train(model, optimizer, lr_scheduler, criterion, data_loader, epoch):
     mIoU = np.mean(iou_class[1:])
     if rank == 0:
         logger.info('=========epoch[{}]=========,Train mIoU = {}'.format(epoch, mIoU))
+        print('=========epoch[{}]=========,Train mIoU = {}'.format(epoch, mIoU))
 
 
 def validate(model, data_loader, epoch):
@@ -252,7 +258,7 @@ def validate(model, data_loader, epoch):
     dice_union = 0
 
     for step, batch in enumerate(data_loader):
-        images, labels = batch
+        images, labels, indexes = batch
         images = images.cuda()
         labels = labels.long().cuda()
         with torch.no_grad():
@@ -299,6 +305,52 @@ def validate(model, data_loader, epoch):
         logger.info('=========epoch[{}]=========,Val mIoU = {}, Val mDice = {}'.format(epoch, mIoU, mDice))
     # torch.save(mIoU, 'eval_metric.pth.tar')
     return mIoU, float(mDice)
+
+
+def update_trainset(model, data_loader, epoch):
+    model.eval()
+    try:
+        data_loader.sampler.set_epoch(epoch)
+    except:
+        pass
+
+    num_classes, ignore_label = cfg['net']['num_classes'], cfg['dataset']['ignore_label']
+
+    false_indexes = []
+    true_indexes = []
+    whole_trainset = Camelyon16Dataset(cfg=data_loader.dataset.cfg, mode="hard_mining",
+                                       transform=data_loader.dataset.transform,
+                                       whole_images=data_loader.dataset.whole_images,
+                                       whole_rles=data_loader.dataset.whole_rles)
+    whole_train_loader = DataLoader(whole_trainset, batch_size=data_loader.batch_size,
+                                    num_workers=data_loader.num_workers, shuffle=True, pin_memory=False)
+
+    for step, batch in enumerate(whole_train_loader):
+        images, labels, indexes = batch
+        images = images.cuda()
+        labels = labels.long().cuda()
+        with torch.no_grad():
+            preds = model(images)
+
+        output = preds[0] if cfg['net'].get('aux_loss', False) else preds
+        output = output.data.max(1)[1].cpu().numpy()
+        target = labels.cpu().numpy()
+        for o, t, index in zip(output, target, indexes):
+            intersection, union, target = intersectionAndUnion(o, t, num_classes, ignore_label)
+            if (intersection / union)[1] < 0.9 or (intersection / union)[0] < 0.5:
+                false_indexes.append(index)
+            else:
+                true_indexes.append(index)
+
+    hard_mining_indexes = np.concatenate((false_indexes, np.random.choice(true_indexes, int(0.2 * len(false_indexes)))))
+    new_dataset = Camelyon16Dataset(cfg=data_loader.dataset.cfg, mode="hard_mining",
+                                    transform=data_loader.dataset.transform,
+                                    whole_images=data_loader.dataset.whole_images,
+                                    whole_rles=data_loader.dataset.whole_rles, custom_idx=hard_mining_indexes)
+    new_loader = DataLoader(new_dataset, batch_size=data_loader.batch_size,
+                            num_workers=data_loader.num_workers, shuffle=True,
+                            pin_memory=False)
+    return new_loader
 
 
 if __name__ == '__main__':

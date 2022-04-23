@@ -37,7 +37,7 @@ def main():
     cudnn.enabled = True
     cudnn.benchmark = True
 
-    logger.info(cfg)
+    # logger.info(cfg)
 
     # Create network.
     model = ModelBuilder(cfg['net'])
@@ -51,7 +51,7 @@ def main():
     logger.info("Load trained model from {}".format(str(cfg['test']['model'])))
     load_trained_model(model, state_dict)
 
-    logger.info(model)
+    # logger.info(model)
 
     testloader = get_loader(cfg, splits=['test'])
 
@@ -73,11 +73,15 @@ def test(model, data_loader):
     dice_inter = 0
     dice_union = 0
     for step, batch in enumerate(data_loader):
+<<<<<<< HEAD
+        images, labels, _ = batch
+=======
         # import pdb; pdb.set_trace()
         try:
             images, labels, name = batch
         except:
             images, labels = batch
+>>>>>>> 68fd43650011bc674dd8f8d3bca6d8a4aa19e8d6
         images = images.cuda()
         labels = labels.long().cuda()
         with torch.no_grad():

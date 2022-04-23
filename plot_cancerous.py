@@ -49,8 +49,10 @@ def apply_color_overlay(image, mask=None, intensity=0.3, red=200, green=66, blue
 class RegCon():
     def __init__(self):
         parser = argparse.ArgumentParser(description="Pytorch Semantic Segmentation")
+        self.config_file = "config_plot2.yaml"
+        self.name = self.config_file.replace(".yaml", "")
         parser.add_argument("--config", type=str,
-                            default="/fs/classhomes/spring2022/cmsc828l/c828l050/RegionContrast-Med/experiments/camelyon/config_contrast.yaml")
+                            default="/fs/classhomes/spring2022/cmsc828l/c828l050/RegionContrast-Med/experiments/camelyon/" + self.config_file)
         args = parser.parse_args()
         self.cfg = yaml.load(open(args.config, 'r'), Loader=yaml.Loader)
 
@@ -80,55 +82,63 @@ cfg = copy.deepcopy(model.cfg["dataset"])
 cfg.update(cfg.get("test", {}))
 trns = build_transfrom(cfg, test_mode=True)
 batch_size = 20
-for lamel in range(14, 70):
-    try:
-
-        print("plotting", lamel, "...")
-        test_dataset = Camelyon16Dataset(path=data_path, mode="plot", transform=trns, cfg=model.cfg, lamel_idx=lamel)
-        test_data_df = test_dataset.test_df
-
-        test_loader = torch.utils.data.DataLoader(
-            test_dataset,
-            batch_size=batch_size,
-            num_workers=8,
-            pin_memory=True,
-            shuffle=False,
-        )
-        if len(test_loader) == 0:
-            continue
-        col_count = max(test_data_df["x_index"]) + 3
-
-        row_count = max(test_data_df["y_index"]) + 3
-        print("with shape:", row_count, col_count)
-        tile_size = 100
-        whole_slide_image_normal = np.zeros((tile_size * row_count, tile_size * col_count, 3))
-        whole_slide_image = np.zeros((tile_size * row_count, tile_size * col_count, 3))
-        print(whole_slide_image.shape)
-        true_pred = 0
-        for batch in test_loader:
-            images = batch["image"].cuda()
-            pred = model.predict(images, logits=False)
-            # if not model:
-            #     pred = np.zeros(batch_size)
-            # true_pred += torch.sum(torch.eq(pred, batch["mask"]))
-            for i in range(batch_size):
-                cernainty = 0.8
-                if i == len(batch["pos"][0]):
-                    break
-                c, r = batch["pos"][0][i].item(), batch["pos"][1][i].item()
-                patch = batch["thumbnail"][i].numpy()
-                if batch["label"][i] == 1:
-                    patch = apply_color_overlay(patch, batch["mask"][i].numpy(), intensity=cernainty, green=200, red=200)
-                # if pred[i].sum() > 0:
-                #     patch = apply_color_overlay(patch, pred[i].numpy(), intensity=cernainty, green=200, red=50)
-
-                whole_slide_image[tile_size * r:tile_size * (r + 1), c * tile_size:(c + 1) * tile_size, :] = patch
-                sys.stdout.flush()
-                sys.stdout.write("row:{r}, col:{c}\r".format(r=r, c=c))
-        os.makedirs("./slides_tumor/", exist_ok=True)
-
-        save_dir = "./slides_tumor/tumor_{}.jpg".format(lamel)
-        cv2.imwrite(save_dir, whole_slide_image)
-    except:
-        print(lamel, "error")
+for lamel in [16, 55]:
+    # try:
+    if lamel in [14, 15, 16, 19, 21, 24, 25, 28, 30, 31, 34, 61]:
         continue
+
+    print("plotting", lamel, "...")
+    test_dataset = Camelyon16Dataset(path=data_path, mode="plot", transform=trns, cfg=model.cfg["dataset"],
+                                     lamel_idx=lamel)
+    test_data_df = test_dataset.test_df
+
+    test_loader = torch.utils.data.DataLoader(
+        test_dataset,
+        batch_size=batch_size,
+        num_workers=8,
+        pin_memory=True,
+        shuffle=False,
+    )
+    if len(test_loader) == 0:
+        continue
+    col_count = max(test_data_df["x_index"]) + 3
+
+    row_count = max(test_data_df["y_index"]) + 3
+    print("with shape:", row_count, col_count)
+    tile_size = 100
+    whole_slide_image_normal = np.zeros((tile_size * row_count, tile_size * col_count, 3))
+    whole_slide_image = np.zeros((tile_size * row_count, tile_size * col_count, 3))
+    print(whole_slide_image.shape)
+    true_pred = 0
+    for batch in test_loader:
+        images = batch["image"].cuda()
+        pred = model.predict(images, logits=True)
+        # if not model:
+        #     pred = np.zeros(batch_size)
+        # true_pred += torch.sum(torch.eq(pred, batch["mask"]))
+        for i in range(batch_size):
+            cernainty = 0.4
+            if i == len(batch["pos"][0]):
+                break
+            c, r = batch["pos"][0][i].item(), batch["pos"][1][i].item()
+            patch = batch["thumbnail"][i].numpy()
+            cv2.imwrite(f"/fs/class-projects/spring2022/cmsc828l/c828lg001/cam_vis/{model.name}/{c}_{r}.jpg",patch)
+
+            if batch["label"][i] == 1:
+                patch = apply_color_overlay(patch, batch["mask"][i].numpy(), intensity=cernainty, red=200)
+                cv2.imwrite(f"/fs/class-projects/spring2022/cmsc828l/c828lg001/cam_vis/{model.name}/{c}_{r}_label.jpg", patch)
+            if pred[i].sum() > 0:
+                patch = apply_color_overlay(patch, pred[i].numpy(), intensity=cernainty, green=200, red=50)
+                cv2.imwrite(f"/fs/class-projects/spring2022/cmsc828l/c828lg001/cam_vis/{model.name}/{c}_{r}_infer.jpg", patch)
+            whole_slide_image[tile_size * r:tile_size * (r + 1), c * tile_size:(c + 1) * tile_size, :] = patch
+
+            sys.stdout.flush()
+            sys.stdout.write("row:{r}, col:{c}\r".format(r=r, c=c))
+    os.makedirs(f"/fs/class-projects/spring2022/cmsc828l/c828lg001/cam_vis/{model.name}", exist_ok=True)
+
+    save_dir = f"/fs/class-projects/spring2022/cmsc828l/c828lg001/cam_vis/{model.name}/tumor_{lamel}.jpg"
+    print(f"saved in {save_dir}")
+    cv2.imwrite(save_dir, whole_slide_image)
+# except:
+#     print(lamel, "error")
+#     continue

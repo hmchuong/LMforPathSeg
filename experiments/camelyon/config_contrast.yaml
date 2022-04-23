@@ -25,6 +25,7 @@ dataset: # Required.
 
 trainer: # Required.
   epochs: 100
+  HM: False
   start_epochs: 0
   eval_on: True
   optimizer:
@@ -39,13 +40,11 @@ trainer: # Required.
       power: 0.9
 
 saver:
-  snapshot_dir: checkpoints
-  pretrain: '/fs/class-projects/spring2022/cmsc828l/c828lg001/Amir_checkpoints/TSNE/without_HM/best.pth'
-
+  snapshot_dir: checkpoints_contrast_0-1-1-1_newDS
+  pretrain: 'checkpoints_contast_HM_0-1-1-1/best.pth'
+  retrieve_pretrain_best: False
 test:
-  model: /fs/class-projects/spring2022/cmsc828l/c828lg001/Amir_checkpoints/checkpoints_noncontrast/best.pth
-  save_result: True
-  save_dir: outputs/nocontrast
+  model: checkpoints_contrast_0-1-1-1_newDS/best.pth
 
 criterion:
   type: ohem

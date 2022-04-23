@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=train_camelyon16
+#SBATCH --job-name=plot
 #SBATCH --output=slurm_%A.out
 #SBATCH --error=slurm_%A.err
 #SBATCH --gres=gpu:1
