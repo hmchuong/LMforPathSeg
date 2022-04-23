@@ -39,13 +39,9 @@ class dec_contrast(nn.Module):
         eval("self.ptr"+str(cat))[0] = ptr
 
         # Store to writer
-        # emb = keys.unsqueeze(0)
-        # label = [cat]
-        # self.writer.add_embedding(emb, metadata=label, global_step=self.global_step)
-        # self.global_step += 1
-        # with open("embedding_nocontrast.tsv", "a") as f:
+        # with open("embedding_noHM.tsv", "a") as f:
         #     f.write('\t'.join([str(x) for x in keys.cpu().numpy().tolist()]) + "\n")
-        # with open("embedding_nocontrast_label.txt", "a") as f:
+        # with open("embedding_noHM_label.txt", "a") as f:
         #     f.write(str(cat) + "\n")
 
         del keys, ptr

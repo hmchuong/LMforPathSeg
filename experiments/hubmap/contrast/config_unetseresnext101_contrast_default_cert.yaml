@@ -45,8 +45,8 @@ saver:
 
 test:
   model: 'checkpoints/unet_0419_def_cert/best.pth'
-  # save_result: True
-  # save_dir: outputs/unetresnext101_0404
+  save_result: True
+  save_dir: outputs/unet_0419_def_cert
 
 criterion:
   type: ohem

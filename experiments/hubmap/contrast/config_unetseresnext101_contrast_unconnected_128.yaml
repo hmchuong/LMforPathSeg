@@ -40,12 +40,12 @@ trainer: # Required.
       power: 0.9
 
 saver:
-  snapshot_dir: checkpoints/debug_embedding
-  pretrain: '/fs/classhomes/spring2022/cmsc828l/c828l028/RegionContrast-Med/experiments/hubmap/contrast/checkpoints/unet_0413_unconnected_128/best.pth'
+  snapshot_dir: checkpoints/unet_0421_uncon_128
+  pretrain: ''
 
 test:
-  model: 'checkpoints/unet_0413_unconnected_128/best.pth'
-  save_result: True
+  model: 'checkpoints/unet_0421_uncon_128/best.pth'
+  save_result: False
   save_dir: outputs/unet_0413_uncon_128
 
 criterion:

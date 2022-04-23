@@ -24,14 +24,14 @@ dataset: # Required.
   ignore_label: 255
 
 trainer: # Required.
-  epochs: 100
+  epochs: 70
   start_epochs: 0
   eval_on: True
   metric: 'mDice'
   optimizer:
     type: SGD
     kwargs:
-      lr: 0.0005
+      lr: 0.00016
       momentum: 0.9
       weight_decay: 0.0005
   lr_scheduler:
@@ -40,13 +40,13 @@ trainer: # Required.
       power: 0.9
 
 saver:
-  snapshot_dir: checkpoints/unet_0419_unconnected_128_cert
+  snapshot_dir: checkpoints/unet_0421_unconnected_128_cert
   pretrain: ''
 
 test:
-  model: 'checkpoints/unet_0419_unconnected_128_cert/best.pth'
-  # save_result: True
-  # save_dir: outputs/unetresnext101_0404
+  model: 'checkpoints/unet_0421_unconnected_128_cert/best.pth'
+  save_result: False
+  save_dir: outputs/unetresnext101_0404
 
 criterion:
   type: ohem

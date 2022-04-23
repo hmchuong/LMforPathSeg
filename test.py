@@ -103,8 +103,11 @@ def test(model, data_loader):
         i, u = dice(output, target)
         dice_inter += i 
         dice_union += u
-        # with open("val_def.csv", "a") as f:
-        #     f.write(name[0] + "," + str(dice_coeff) + "\n")
+        # with open("val_uncon_128_cert.csv", "a") as f:
+        #     if u != 0:
+        #         f.write(name[0] + "," + str(2 * i/u) + "\n")
+        #     else:
+        #         f.write(name[0] + "," + str(0) + "\n")
         intersection, union, target = intersectionAndUnion(output, target, num_classes, ignore_label)
 
         intersection_meter.update(intersection)

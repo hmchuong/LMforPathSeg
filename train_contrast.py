@@ -74,11 +74,7 @@ def main():
             # this should be removed if we update BatchNorm stats
             find_unused_parameters=True,
         )
-    if cfg['saver']['pretrain']:
-        state_dict = torch.load(cfg['saver']['pretrain'], map_location='cpu')
-        print("Load trained model from ", str(cfg['saver']['pretrain']))
-        load_trained_model(model, state_dict['model_state'])
-        best_prec = state_dict['best_IoU']
+    
 
     # model.cuda()
     if rank == 0:
@@ -101,12 +97,20 @@ def main():
     optimizer = get_optimizer(params_list, cfg_optim)
     lr_scheduler = get_scheduler(cfg_trainer, len(trainloader), optimizer)  # TODO
 
+    if cfg['saver']['pretrain']:
+        state_dict = torch.load(cfg['saver']['pretrain'], map_location='cpu')
+        print("Load trained model from ", str(cfg['saver']['pretrain']))
+        load_trained_model(model, state_dict['model_state'])
+        optimizer.load_state_dict(state_dict["optimizer_state"])
+        best_prec = state_dict['best_IoU']
+
     # Start to train model
     for epoch in range(cfg_trainer['start_epochs'], cfg_trainer['epochs']):
         # Training
         gc.collect()
         train(model, optimizer, lr_scheduler, criterion, trainloader, epoch)
         gc.collect()
+        # import pdb; pdb.set_trace()
         # import pdb; pdb.set_trace()
         # emb = torch.cat([model.decoder.queue0, model.decoder.queue1], dim=1)
         # emb = emb.permute(1, 0)
