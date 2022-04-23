@@ -11,6 +11,7 @@ import os
 import torch
 from torch.utils.data import DataLoader
 import torch.backends.cudnn as cudnn
+import torch.nn as nn
 
 from pyseg.models.model_helper import ModelBuilder
 
@@ -67,6 +68,11 @@ def main():
     else:
         modules_head = [model.decoder]
 
+    # Start: new BCE loss update
+    if model.auxor_classifier is not None:
+        modules_classifier = [model.auxor_classifier]
+    # End: new BCE loss update
+
     device = torch.device("cuda")
     model.to(device)
     if is_distributed():
@@ -83,6 +89,10 @@ def main():
 
     criterion = get_criterion(cfg)
 
+    # Start: new BCE loss update
+    criterion_bce = get_criterion(cfg, bce=True)
+    # End: new BCE loss update
+
     trainloader, valloader = get_loader(cfg)
 
     # Optimizer and lr decay scheduler
@@ -94,6 +104,10 @@ def main():
         params_list.append(dict(params=module.parameters(), lr=cfg_optim['kwargs']['lr']))
     for module in modules_head:
         params_list.append(dict(params=module.parameters(), lr=cfg_optim['kwargs']['lr'] * 10))
+    # Start: new BCE loss update
+    for module in modules_classifier:
+        params_list.append(dict(params=module.parameters(), lr=cfg_optim['kwargs']['lr'] * 10))
+    # End: new BCE loss update
 
     optimizer = get_optimizer(params_list, cfg_optim)
     lr_scheduler = get_scheduler(cfg_trainer, len(trainloader), optimizer)  # TODO
@@ -112,7 +126,7 @@ def main():
 
         # Training
         gc.collect()
-        train(model, optimizer, lr_scheduler, criterion, trainloader, epoch)
+        train(model, optimizer, lr_scheduler, criterion, criterion_bce,  trainloader, epoch)
         gc.collect()
         # import pdb; pdb.set_trace()
         # import pdb; pdb.set_trace()
@@ -156,7 +170,7 @@ def main():
             logger.info('Save Checkpoint {}'.format(epoch))
 
 
-def train(model, optimizer, lr_scheduler, criterion, data_loader, epoch):
+def train(model, optimizer, lr_scheduler, criterion, criterion_bce, data_loader, epoch):
     model.train()
     try:
         data_loader.sampler.set_epoch(epoch)
@@ -174,16 +188,29 @@ def train(model, optimizer, lr_scheduler, criterion, data_loader, epoch):
         lr = lr_scheduler.get_lr()
         lr_scheduler.step()
 
-        images, labels, _ = batch
-        if images.shape[0] <= 1:
-            continue
+        images, labels = batch
+
+        # Start: new BCE loss update
+        labels_classification = torch.amax(labels, (1,2))
+        labels_classification = labels_classification.cuda()
+        # End: new BCE loss update
+        
         images = images.cuda()
         labels = labels.long().cuda()
 
         preds = model(images)
 
+        # Start: new BCE loss update
+        classification_pred = preds[-2]
+        del preds[-2]
+        classification_loss = criterion_bce(classification_pred, labels_classification.float().cuda()) / world_size
+        logger.info("Classification loss: {}".format(classification_loss))
+        # End: new BCE loss update
+
         contrast_loss = preds[-1] / world_size
         loss = criterion(preds[:-1], labels) / world_size
+        #TODO: Check how we can incorporate the classification loss - if included in loss, it blows up
+        loss += classification_loss*0.1
         # logger.info("loss: {:.4f}, contrast: {:.4f}".format(loss, contrast_loss))
         loss += cfg['criterion']['contrast_weight'] * contrast_loss
         optimizer.zero_grad()
@@ -225,8 +252,8 @@ def train(model, optimizer, lr_scheduler, criterion, data_loader, epoch):
             accuracy_class = intersection_meter.sum / (target_meter.sum + 1e-10)
             mIoU = np.mean(iou_class[1:])
             mAcc = np.mean(accuracy_class[1:])
-            logger.info('iter = {} of {} completed, LR = {} loss = {}, mIoU = {}'
-                        .format(i_iter, cfg['trainer']['epochs']*len(data_loader), lr, losses.avg, mIoU))
+            logger.info('iter = {} of {} completed, LR = {} loss = {}, classification loss = {} mIoU = {}'
+                        .format(i_iter, cfg['trainer']['epochs']*len(data_loader), lr, losses.avg, classification_loss, mIoU))
             # logger.info('After training: RAM memory used: {} %'.format(psutil.virtual_memory()[2]))
         del preds, output, target, images, labels
         gc.collect()
@@ -265,6 +292,11 @@ def validate(model, data_loader, epoch):
             preds = model(images)
 
         # get the output produced by model
+        # Start: new BCE loss update
+        output_classification = preds[-2]
+        del preds[-2]
+        #TODO: Convert output to 0-1 and get the accuracy
+        # End: new BCE loss update
         output = preds[0] if cfg['net'].get('aux_loss', False) else preds
         output = output.data.max(1)[1].cpu().numpy()
         target = labels.cpu().numpy()

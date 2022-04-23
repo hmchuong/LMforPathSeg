@@ -4,7 +4,7 @@ dataset: # Required.
     data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16
     data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16/data.csv
     resize: [512, 512]
-    rand_resize_crop:
+    rand_resize_crop: 
       scale: [0.8, 1.2]
       size: [384, 384]
     rand_rotation: [-90, 90]
@@ -17,15 +17,14 @@ dataset: # Required.
     data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16
     data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16/data.csv
     resize: [512, 512]
-  batch_size: 10
-  workers: 10
+  batch_size: 4
+  workers: 4
   mean: [0.845, 0.800, 0.820]
   std: [0.240, 0.277, 0.245]
   ignore_label: 255
 
 trainer: # Required.
   epochs: 100
-  HM: False
   start_epochs: 0
   eval_on: True
   optimizer:
@@ -40,15 +39,22 @@ trainer: # Required.
       power: 0.9
 
 saver:
-  snapshot_dir: checkpoints_noncontrast_newDS
-  pretrain: 'checkpoints_noncontrast_newDS/best.pth'
-  retrieve_pretrain_best: False
+  snapshot_dir: checkpoints_noncontrast
+  pretrain: ''
+
 test:
   model: checkpoints_noncontrast/best.pth
-
+  
 criterion:
   type: ohem
-  contrast_weight: 0
+  contrast_weight: 0.0
+  kwargs:
+    thresh: 0.7
+    min_kept: 100000
+
+criterion_bce:
+  type: bce
+  contrast_weight: 0.0
   kwargs:
     thresh: 0.7
     min_kept: 100000
@@ -59,6 +65,9 @@ net: # Required.
   aux_loss:
     aux_plane: 1024
     loss_weight: 0.4
+  bce_loss:
+    loss_weight: 0.4
+    num_classes: 1
   encoder:
     type: pyseg.models.resnet.resnet50
     kwargs:
@@ -70,4 +79,4 @@ net: # Required.
     kwargs:
       inner_planes: 256
       dilations: [12, 24, 36]
-
+      

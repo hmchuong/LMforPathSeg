@@ -216,3 +216,25 @@ class Aux_Module(nn.Module):
     def forward(self, x):
         res = self.aux(x)
         return res
+
+# Start: new BCE loss update
+class Aux_Classification_Module(nn.Module):
+    def __init__(self, in_planes, num_classes=1, sync_bn=False):
+        super(Aux_Classification_Module, self).__init__()
+
+        self.pool = nn.AdaptiveAvgPool2d((1,1))
+        self.fc1 = nn.Sequential(
+            nn.Linear(in_planes, 512),
+            nn.ReLU(),
+            nn.Dropout2d(0.1),
+            nn.Linear(512, num_classes)
+        )
+
+    def forward(self, x):
+        res = self.pool(x)
+        # import ipdb
+        # ipdb.set_trace()
+        res = res.view(res.size()[0], -1)
+        res = self.fc1(res)
+        return res.flatten()
+# End: new BCE loss update
