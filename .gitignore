@@ -22,3 +22,8 @@ experiments/*/checkpoints/
 *.csv
 **/checkpoints
 *.out
+**/*.txt
+**/*.csv
+**/*.tsv
+**/*.pbtxt
+**/events.*

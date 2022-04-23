@@ -185,8 +185,7 @@ class Aux_Classification_Module(nn.Module):
             nn.Linear(in_planes, 512),
             nn.ReLU(),
             nn.Dropout2d(0.1),
-            nn.Linear(512, num_classes),
-            nn.ReLU()
+            nn.Linear(512, num_classes)
         )
 
     def forward(self, x):
