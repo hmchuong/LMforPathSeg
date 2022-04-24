@@ -42,7 +42,9 @@ IDS = ['0486052bb',
 
 class HubmapDataset(data_utils.Dataset):
 
-    def __init__(self, path=None, mode="train", transform=None, cfg=None, return_name=False):
+    def __init__(self, path=None, mode="train", transform=None, cfg=None, return_name=False, whole_images=None,
+                 whole_rles=None,
+                 custom_idx=None):
         super().__init__()
         self.transform = transform
         self.cfg = cfg
@@ -53,6 +55,12 @@ class HubmapDataset(data_utils.Dataset):
         df = pd.read_csv(path + '/data.csv')
         ratio_threshold = 0
 
+        if mode == "hard_mining":
+            images = whole_images
+            rles = whole_rles
+            if custom_idx is not None:
+                images = images[custom_idx]
+                rles = rles[custom_idx]
         if mode == 'train':
             filter_str = "^./images/(" + "|".join(IDS[:10]) + ")_*"
             df = df[df['image'].str.count(filter_str) > 0]
@@ -78,6 +86,8 @@ class HubmapDataset(data_utils.Dataset):
         self.y = rles
         self.path = path
         self.return_name = return_name
+        self.whole_images = images
+        self.whole_rles = rles
 
         print('Loaded {} dataset with {} samples'.format(mode, len(self.X)))
         print("# " * 50)

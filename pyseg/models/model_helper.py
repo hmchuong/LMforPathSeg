@@ -30,7 +30,7 @@ class ModelBuilder(nn.Module):
         if self._use_bceloss:
             cfg_aux = net_cfg['bce_loss']
             self.loss_weight_classifier = cfg_aux['loss_weight']
-            self.auxor_classifier = Aux_Classification_Module(self.encoder.get_outplanes(), cfg_aux['num_classes'], self._sync_bn)
+            self.auxor_classifier = Aux_Classification_Module(cfg_aux['aux_plane'], cfg_aux['num_classes'], self._sync_bn)
         # End: new BCE loss update
 
     def _build_encoder(self, enc_cfg):
@@ -83,11 +83,15 @@ class ModelBuilder(nn.Module):
                 res = F.upsample(input=res, size=(h, w), mode='bilinear', align_corners=True)
                 #fea = F.upsample(input=fea, size=(h, w), mode='bilinear', align_corners=True)
                 # Start: new BCE loss update
+                if pred_class is None:
+                    return [res, pred_aux, contrast_loss]
                 return [res, pred_aux, pred_class, contrast_loss]
                 # End: new BCE loss update
             else:
                 pred_head = F.upsample(input=pred_head, size=(h, w), mode='bilinear', align_corners=True)
                 # Start: new BCE loss update
+                if pred_class is None:
+                    return [pred_head, pred_aux]
                 return [pred_head, pred_class, pred_aux]
                 # End: new BCE loss update
         else:

@@ -11,9 +11,8 @@ def get_criterion(cfg, bce=False):
     ignore_index = cfg['dataset']['ignore_label']
 
     # Start: new BCE loss update
-    use_bce = cfg['criterion_bce']
-    bce_weight = cfg['net']['bce_loss']['loss_weight'] if cfg['net'].get('bce_loss', False) else 0
-    if use_bce and bce:
+    if bce:
+        bce_weight = cfg['net']['bce_loss']['loss_weight'] if cfg['net'].get('bce_loss', False) else 0
         criterion = BCELoss(aux_weight=bce_weight)
         return criterion
     # End: new BCE loss update

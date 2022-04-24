@@ -52,13 +52,6 @@ criterion:
     thresh: 0.7
     min_kept: 100000
 
-criterion_bce:
-  type: bce
-  contrast_weight: 0.1
-  kwargs:
-    thresh: 0.7
-    min_kept: 100000
-
 net: # Required.
   num_classes: 2
   sync_bn: False
@@ -66,6 +59,7 @@ net: # Required.
     aux_plane: 1024
     loss_weight: 0.4
   bce_loss:
+    aux_plane: 1024
     loss_weight: 0.4
     num_classes: 1
   encoder:

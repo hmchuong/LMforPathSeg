@@ -23,7 +23,8 @@ from pyseg.utils.lr_helper import get_scheduler, get_optimizer
 from pyseg.utils.utils import AverageMeter, intersectionAndUnion, init_log, load_trained_model, dice
 from pyseg.utils.utils import set_random_seed, get_world_size, get_rank, is_distributed
 from pyseg.dataset.builder import get_loader
-from pyseg.dataset.camelyon16 import Camelyon16Dataset
+# from pyseg.dataset.camelyon16 import Camelyon16Dataset
+# from pyseg.dataset.hubmap import HubmapDataset
 
 parser = argparse.ArgumentParser(description="Pytorch Semantic Segmentation")
 parser.add_argument("--config", type=str, default="config.yaml")
@@ -69,8 +70,8 @@ def main():
         modules_head = [model.decoder]
 
     # Start: new BCE loss update
-    if model.auxor_classifier is not None:
-        modules_classifier = [model.auxor_classifier]
+    if hasattr(model, "auxor_classifier"):
+        modules_head += [model.auxor_classifier]
     # End: new BCE loss update
 
     device = torch.device("cuda")
@@ -90,7 +91,9 @@ def main():
     criterion = get_criterion(cfg)
 
     # Start: new BCE loss update
-    criterion_bce = get_criterion(cfg, bce=True)
+    criterion_bce = None
+    if hasattr(model, "auxor_classifier"):
+        criterion_bce = get_criterion(cfg, bce=True)
     # End: new BCE loss update
 
     trainloader, valloader = get_loader(cfg)
@@ -104,10 +107,6 @@ def main():
         params_list.append(dict(params=module.parameters(), lr=cfg_optim['kwargs']['lr']))
     for module in modules_head:
         params_list.append(dict(params=module.parameters(), lr=cfg_optim['kwargs']['lr'] * 10))
-    # Start: new BCE loss update
-    for module in modules_classifier:
-        params_list.append(dict(params=module.parameters(), lr=cfg_optim['kwargs']['lr'] * 10))
-    # End: new BCE loss update
 
     optimizer = get_optimizer(params_list, cfg_optim)
     lr_scheduler = get_scheduler(cfg_trainer, len(trainloader), optimizer)  # TODO
@@ -121,21 +120,14 @@ def main():
 
     # Start to train model
     for epoch in range(cfg_trainer['start_epochs'], cfg_trainer['epochs']):
-        if cfg_trainer.get("HM", False) and epoch % 20 == 0:
-            trainloader = update_trainset(model, trainloader, epoch)
+        if cfg_trainer.get("HM", False) and epoch % cfg_trainer["HM"].get("interval", 20) == 0 and epoch > 0:
+            logger.info("HM: start update training set")
+            trainloader = update_trainset(model, trainloader, valloader.dataset.transform, epoch)
 
         # Training
         gc.collect()
         train(model, optimizer, lr_scheduler, criterion, criterion_bce,  trainloader, epoch)
         gc.collect()
-        # import pdb; pdb.set_trace()
-        # import pdb; pdb.set_trace()
-        # emb = torch.cat([model.decoder.queue0, model.decoder.queue1], dim=1)
-        # emb = emb.permute(1, 0)
-        # label = torch.ones((616,))
-        # label[:308] = 0
-        # writer.add_embedding(emb, metadata=label)
-        # writer.close()
 
         # print('After training: RAM memory % used:', psutil.virtual_memory()[2])
         # Validataion
@@ -201,16 +193,19 @@ def train(model, optimizer, lr_scheduler, criterion, criterion_bce, data_loader,
         preds = model(images)
 
         # Start: new BCE loss update
-        classification_pred = preds[-2]
-        del preds[-2]
-        classification_loss = criterion_bce(classification_pred, labels_classification.float().cuda()) / world_size
+        
         # logger.info("Classification loss: {}".format(classification_loss))
         # End: new BCE loss update
 
         contrast_loss = preds[-1] / world_size
-        loss = criterion(preds[:-1], labels) / world_size
+        loss = criterion(preds[:2], labels) / world_size
         #TODO: Check how we can incorporate the classification loss - if included in loss, it blows up
-        loss += classification_loss
+        classification_loss = 0
+        if criterion_bce:
+            classification_pred = preds[-2]
+            classification_loss = criterion_bce(classification_pred, labels_classification.float().cuda()) / world_size
+            loss += classification_loss
+
         # logger.info("loss: {:.4f}, contrast: {:.4f}".format(loss, contrast_loss))
         loss += cfg['criterion']['contrast_weight'] * contrast_loss
         optimizer.zero_grad()
@@ -293,8 +288,6 @@ def validate(model, data_loader, epoch):
 
         # get the output produced by model
         # Start: new BCE loss update
-        output_classification = preds[-2]
-        del preds[-2]
         #TODO: Convert output to 0-1 and get the accuracy
         # End: new BCE loss update
         output = preds[0] if cfg['net'].get('aux_loss', False) else preds
@@ -339,7 +332,7 @@ def validate(model, data_loader, epoch):
     return mIoU, float(mDice)
 
 
-def update_trainset(model, data_loader, epoch):
+def update_trainset(model, data_loader, val_transform, epoch):
     model.eval()
     try:
         data_loader.sampler.set_epoch(epoch)
@@ -350,10 +343,9 @@ def update_trainset(model, data_loader, epoch):
 
     false_indexes = []
     true_indexes = []
-    whole_trainset = Camelyon16Dataset(cfg=data_loader.dataset.cfg, mode="hard_mining",
-                                       transform=data_loader.dataset.transform,
-                                       whole_images=data_loader.dataset.whole_images,
-                                       whole_rles=data_loader.dataset.whole_rles)
+    Dataset = data_loader.dataset.__class__
+    whole_trainset = Dataset(cfg=data_loader.dataset.cfg, path=data_loader.dataset.path, mode="train",
+                                       transform=val_transform)
     whole_train_loader = DataLoader(whole_trainset, batch_size=data_loader.batch_size,
                                     num_workers=data_loader.num_workers, shuffle=True, pin_memory=False)
 
@@ -373,12 +365,20 @@ def update_trainset(model, data_loader, epoch):
                 false_indexes.append(index)
             else:
                 true_indexes.append(index)
-
-    hard_mining_indexes = np.concatenate((false_indexes, np.random.choice(true_indexes, int(0.2 * len(false_indexes)))))
-    new_dataset = Camelyon16Dataset(cfg=data_loader.dataset.cfg, mode="hard_mining",
+    
+    logger.info("Found {} hard samples".format(len(false_indexes)))
+    hard_mining_indexes = false_indexes
+    if len(true_indexes) > 0:
+        ratio = cfg["trainer"]["HM"].get("ratio", 0.2)
+        n_sample = int(ratio * len(false_indexes))
+        sample_true_indexes = true_indexes
+        if n_sample < len(sample_true_indexes):
+            hard_mining_indexes = np.concatenate((false_indexes, np.random.choice(true_indexes, n_sample, replace=False)))
+    logger.info("Changed no. training samples from {} to {}".format(len(whole_trainset), len(hard_mining_indexes)))
+    new_dataset = Dataset(cfg=data_loader.dataset.cfg, path=data_loader.dataset.path, mode="hard_mining",
                                     transform=data_loader.dataset.transform,
-                                    whole_images=data_loader.dataset.whole_images,
-                                    whole_rles=data_loader.dataset.whole_rles, custom_idx=hard_mining_indexes)
+                                    whole_images=whole_trainset.whole_images,
+                                    whole_rles=whole_trainset.whole_rles, custom_idx=hard_mining_indexes)
     new_loader = DataLoader(new_dataset, batch_size=data_loader.batch_size,
                             num_workers=data_loader.num_workers, shuffle=True,
                             pin_memory=False)

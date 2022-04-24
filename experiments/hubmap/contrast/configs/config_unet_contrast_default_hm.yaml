@@ -28,6 +28,9 @@ trainer: # Required.
   start_epochs: 0
   eval_on: True
   metric: 'mDice'
+  HM:
+    interval: 10
+    ratio: 0.2
   optimizer:
     type: SGD
     kwargs:
@@ -40,11 +43,11 @@ trainer: # Required.
       power: 0.9
 
 saver:
-  snapshot_dir: checkpoints/unet_0423_def_clsaux_debug
+  snapshot_dir: checkpoints/unet_0424_def_hm
   pretrain: ''
 
 test:
-  model: checkpoints/unet_0423_def_clsaux/best.pth
+  model: checkpoints/unet_0424_def_hm/best.pth
   save_result: False
   save_dir: outputs/unet_0416_def
 
@@ -61,10 +64,6 @@ net: # Required.
   aux_loss:
     aux_plane: 2048
     loss_weight: 0.4
-  bce_loss:
-    aux_plane: 2048
-    loss_weight: 0.4
-    num_classes: 1
   encoder:
     type: pyseg.models.seresnext.seresnext101
     kwargs:
