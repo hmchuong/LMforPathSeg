@@ -100,7 +100,7 @@ class HubmapDataset(data_utils.Dataset):
         # logger.info(mask.sum() / (mask.shape[0] * mask.shape[1]))
         if self.return_name:
             return image, mask, self.X[idx].split('/')[-1]
-        return image, mask
+        return image, mask, idx
 
     def __len__(self):
         return len(self.X)

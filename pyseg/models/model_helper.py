@@ -75,7 +75,7 @@ class ModelBuilder(nn.Module):
             # Start: new BCE loss update
             pred_class = None
             if self._use_bceloss:
-                pred_class = self.auxor_classifier(feat2)
+                pred_class = self.auxor_classifier(feat1)
             # End: new BCE loss update
             
             if self.contrast and self.training: 

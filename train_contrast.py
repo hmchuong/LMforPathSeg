@@ -121,7 +121,7 @@ def main():
 
     # Start to train model
     for epoch in range(cfg_trainer['start_epochs'], cfg_trainer['epochs']):
-        if cfg_trainer["HM"] and epoch % 20 == 0:
+        if cfg_trainer.get("HM", False) and epoch % 20 == 0:
             trainloader = update_trainset(model, trainloader, epoch)
 
         # Training
@@ -188,7 +188,7 @@ def train(model, optimizer, lr_scheduler, criterion, criterion_bce, data_loader,
         lr = lr_scheduler.get_lr()
         lr_scheduler.step()
 
-        images, labels = batch
+        images, labels, idxs = batch
 
         # Start: new BCE loss update
         labels_classification = torch.amax(labels, (1,2))
@@ -204,13 +204,13 @@ def train(model, optimizer, lr_scheduler, criterion, criterion_bce, data_loader,
         classification_pred = preds[-2]
         del preds[-2]
         classification_loss = criterion_bce(classification_pred, labels_classification.float().cuda()) / world_size
-        logger.info("Classification loss: {}".format(classification_loss))
+        # logger.info("Classification loss: {}".format(classification_loss))
         # End: new BCE loss update
 
         contrast_loss = preds[-1] / world_size
         loss = criterion(preds[:-1], labels) / world_size
         #TODO: Check how we can incorporate the classification loss - if included in loss, it blows up
-        loss += classification_loss*0.1
+        loss += classification_loss
         # logger.info("loss: {:.4f}, contrast: {:.4f}".format(loss, contrast_loss))
         loss += cfg['criterion']['contrast_weight'] * contrast_loss
         optimizer.zero_grad()

@@ -73,15 +73,11 @@ def test(model, data_loader):
     dice_inter = 0
     dice_union = 0
     for step, batch in enumerate(data_loader):
-<<<<<<< HEAD
-        images, labels, _ = batch
-=======
         # import pdb; pdb.set_trace()
         try:
             images, labels, name = batch
         except:
             images, labels = batch
->>>>>>> 68fd43650011bc674dd8f8d3bca6d8a4aa19e8d6
         images = images.cuda()
         labels = labels.long().cuda()
         with torch.no_grad():
