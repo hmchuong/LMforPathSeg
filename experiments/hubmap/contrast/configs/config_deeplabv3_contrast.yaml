@@ -17,7 +17,7 @@ dataset: # Required.
     data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches
     data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches/data.csv
     resize: [320, 320]
-  batch_size: 6
+  batch_size: 3
   workers: 4
   mean: [0.845, 0.800, 0.820]
   std: [0.240, 0.277, 0.245]
@@ -39,12 +39,12 @@ trainer: # Required.
       power: 0.9
 
 saver:
-  snapshot_dir: checkpoints/deeplabv3_0409_zeros
+  snapshot_dir: checkpoints/deeplabv3_0425
   pretrain: ''
 
 test:
-  model: 'checkpoints/deeplabv3_0409_zeros/best.pth'
-  save_result: True
+  model: 'checkpoints/deeplabv3_0425/best.pth'
+  save_result: False
   save_dir: outputs/dlv3_0409_zeros
 
 criterion:

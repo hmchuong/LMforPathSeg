@@ -24,7 +24,7 @@ dataset: # Required.
   ignore_label: 255
 
 trainer: # Required.
-  epochs: 70
+  epochs: 100
   start_epochs: 0
   eval_on: True
   metric: 'mDice'
