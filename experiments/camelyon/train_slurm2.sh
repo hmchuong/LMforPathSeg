@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=train_camelyon16
-#SBATCH --output=slurm_%A.out
+#SBATCH --job-name=con0112
+#SBATCH --output=slurm_%A_contrast0112.out
 #SBATCH --error=slurm_%A.err
 #SBATCH --gres=gpu:1
 #SBATCH --partition=class
@@ -10,7 +10,7 @@
 #SBATCH --nodes=1
 #SBATCH --mem-per-cpu=4G
 #SBATCH --cpus-per-task=4
-#SBATCH --time=12:00:00
+#SBATCH --time=1-12:00:00
 
 #module purge
 #module load cuda/11.1.1
@@ -21,4 +21,5 @@ ROOT=../..
 export CUDA_VISIBLE_DEVICES=0
 export PYTHONPATH=$ROOT:$PYTHONPATH
 
-python ../../test.py --config=config_contrast.yaml
+
+python ../../train_contrast.py --config=/fs/classhomes/spring2022/cmsc828l/c828l050/RegionContrast-Med/experiments/camelyon/config_contrast.yaml

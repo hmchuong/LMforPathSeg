@@ -20,3 +20,5 @@ experiments/*/checkpoints/
 **/log_*.txt
 *.pth
 *.out
+*.err
+experiments/camelyon/config_plot*.yaml

@@ -4,7 +4,7 @@ dataset: # Required.
     data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16
     data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16/data.csv
     resize: [512, 512]
-    bin_ratio: [0,1,1,3]
+    bin_ratio: [0,1,1,2]
     rand_resize_crop: 
       scale: [0.8, 1.2]
       size: [384, 384]
@@ -41,11 +41,11 @@ trainer: # Required.
       power: 0.9
 
 saver:
-  snapshot_dir: checkpoints_contrast_0113
+  snapshot_dir: checkpoints_contrast_0112
   pretrain: ''
   retrieve_pretrain_best: False
 test:
-  model: checkpoints_contrast_0113/best.pth
+  model: checkpoints_contrast_0112/best.pth
 
 criterion:
   type: ohem

@@ -54,15 +54,14 @@ class Camelyon16Dataset(data_utils.Dataset):
                 rles = rles[custom_idx]
         if mode == 'train':
             df = df[df['filename_img'].str.count("^tumor_0(28|29|30|31|34|36|39|47|55|61)_.*") > 0]
-            df = self.__filter_data(df, bin_counts=4, bin_ratio=[0, 1, 1, 1])
-            print("bin_ratio=[0, 1, 1, 1]")
+            df = self.__filter_data(df, 2200, bin_counts=4, bin_ratio=cfg["bin_ratio"])
             images = df['filename_img'].to_numpy()
             rles = df['filename_rle'].to_numpy()
 
         elif mode == 'val':
             df = df[df['std_img'] > self.config["STD_THRESHOLD"]]
-            df = df[df['filename_img'].str.count("^tumor_0(19|23).*") > 0]
-            df = self.__filter_data(df, bin_counts=4, bin_ratio=[1, 1, 1, 1])
+            df = df[df['filename_img'].str.count("^tumor_0(09|19|23).*") > 0]
+            df = self.__filter_data(df, 500, bin_counts=4, bin_ratio=[1, 1, 1, 2])
             images = df['filename_img'].to_numpy()
             rles = df['filename_rle'].to_numpy()
 
@@ -71,7 +70,7 @@ class Camelyon16Dataset(data_utils.Dataset):
             self.return_image_rle = False
             df = df[df['filename_img'].str.count("^tumor_0(14|16).*") > 0]
             df = df.sample(frac=1).reset_index(drop=True)  # shuffle and then sample
-            df = self.__filter_data(df, bin_counts=4, bin_ratio=[1, 1, 1, 1])
+            df = self.__filter_data(df, 500, bin_counts=4, bin_ratio=[1, 1, 1, 2])
             self.test_df = df
             images = df['filename_img'].to_numpy()
             rles = df['filename_rle'].to_numpy()
@@ -103,7 +102,7 @@ class Camelyon16Dataset(data_utils.Dataset):
         print('Loaded {} dataset with {} samples'.format(mode, len(self.X)))
         print("# " * 50)
 
-    def __filter_data(self, data, bin_counts, bin_ratio):
+    def __filter_data(self, data, patch_number, bin_counts, bin_ratio):
         """
         balancing data sampling with respect to masked area
         :param data: pandas dataframe
@@ -117,8 +116,6 @@ class Camelyon16Dataset(data_utils.Dataset):
         data['binned'] = np.round(data['ratio_masked_area'] * self.config['MULTIPLIER_BIN']).astype(int)
         max_bin = bin_counts - 1
         data['binned'] = data['binned'].apply(lambda x: max_bin if x >= max_bin else x)
-
-        patch_number = int(data[data['binned'] == 0].shape[0] * 0.1)
 
         data_balanced_list = []
         for bin in range(bin_counts):
