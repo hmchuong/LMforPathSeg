@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=nocon0111
-#SBATCH --output=slurm_%A_nocontrast0111.out
+#SBATCH --job-name=con0112
+#SBATCH --output=slurm_%A_contrast0112.out
 #SBATCH --error=slurm_%A.err
 #SBATCH --gres=gpu:1
 #SBATCH --partition=class
@@ -22,4 +22,4 @@ export CUDA_VISIBLE_DEVICES=0
 export PYTHONPATH=$ROOT:$PYTHONPATH
 
 
-python ../../train_contrast.py --config=/fs/classhomes/spring2022/cmsc828l/c828l050/RegionContrast-Med/experiments/camelyon/config_nocontrast.yaml
+python ../../train_contrast.py --config=/fs/classhomes/spring2022/cmsc828l/c828l050/RegionContrast-Med/experiments/camelyon/config_contrast.yaml
