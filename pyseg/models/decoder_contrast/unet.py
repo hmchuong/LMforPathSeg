@@ -6,6 +6,7 @@ from ..base import  conv1x1, conv3x3
 from .contrast import dec_contrast
 
 def init_weight(m):
+    return
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
         nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='relu')
@@ -98,7 +99,7 @@ class DecodeBlock(nn.Module):
 class dec_unet_contrast(dec_contrast):
    
     def __init__(self, num_classes=2, inner_planes=320, temperature=0.2, queue_len=2975, **kwargs):
-        super(dec_unet_contrast, self).__init__(inner_planes, num_classes, temperature, queue_len)
+        super(dec_unet_contrast, self).__init__(inner_planes, num_classes, temperature, queue_len, **kwargs)
 
         # bottleneck
         self.center  = CenterBlock(2048, 512)

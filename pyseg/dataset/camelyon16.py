@@ -149,8 +149,8 @@ class Camelyon16Dataset(data_utils.Dataset):
                     "thumbnail": thumbnail,
                     "label": label, "rle": rle, "filename_img": self.X[idx],
                     "mask": mask}
-
         return image, mask, idx
+        # return image, mask, self.X[idx].split('/')[-1]
 
     def __len__(self):
         return len(self.X)

@@ -39,13 +39,13 @@ trainer: # Required.
       power: 0.9
 
 saver:
-  snapshot_dir: checkpoints/unetresnext101_0409_zeros
+  snapshot_dir: checkpoints/deeplabv3_0425_nocontrast
   pretrain: ''
 
 test:
-  model: 'checkpoints/unetresnext101_0409_zeros/best.pth'
-  save_result: True
-  save_dir: outputs/unet_0409
+  model: 'checkpoints/deeplabv3_0425_nocontrast/best.pth'
+  save_result: False
+  save_dir: outputs/dlv3_0409_zeros
 
 criterion:
   type: ohem
@@ -58,15 +58,18 @@ net: # Required.
   num_classes: 2
   sync_bn: False
   aux_loss:
-    aux_plane: 2048
+    aux_plane: 1024
     loss_weight: 0.4
   encoder:
-    type: pyseg.models.seresnext.seresnext101
+    type: pyseg.models.resnet.resnet50
     kwargs:
-      pretrained: 'imagenet'
+      multi_grid: True
+      zero_init_residual: True
+      replace_stride_with_dilation: [False, True, True]  #layer0...1 is fixed, layer2...4
   decoder:
-    type: pyseg.models.decoder_contrast.dec_unet_contrast
+    type: pyseg.models.decoder_contrast.dec_deeplabv3_contrast
     kwargs:
-      inner_planes: 320
-      queue_len: 308
+      inner_planes: 256
+      dilations: [12, 24, 36]
+      queue_len: 705
       

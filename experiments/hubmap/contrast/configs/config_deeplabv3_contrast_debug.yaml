@@ -17,7 +17,7 @@ dataset: # Required.
     data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches
     data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches/data.csv
     resize: [320, 320]
-  batch_size: 3
+  batch_size: 6
   workers: 4
   mean: [0.845, 0.800, 0.820]
   std: [0.240, 0.277, 0.245]
@@ -39,17 +39,15 @@ trainer: # Required.
       power: 0.9
 
 saver:
-  snapshot_dir: checkpoints/unetresnext101_0409_zeros
+  snapshot_dir: checkpoints/deeplabv3_0409_zeros
   pretrain: ''
 
 test:
-  model: 'checkpoints/unetresnext101_0409_zeros/best.pth'
-  save_result: True
-  save_dir: outputs/unet_0409
+  model: 'checkpoints/deeplabv3_0409_zeros/best.pth'
 
 criterion:
   type: ohem
-  contrast_weight: 0.0
+  contrast_weight: 0.1
   kwargs:
     thresh: 0.7
     min_kept: 100000
@@ -58,15 +56,18 @@ net: # Required.
   num_classes: 2
   sync_bn: False
   aux_loss:
-    aux_plane: 2048
+    aux_plane: 1024
     loss_weight: 0.4
   encoder:
-    type: pyseg.models.seresnext.seresnext101
+    type: pyseg.models.resnet.resnet50
     kwargs:
-      pretrained: 'imagenet'
+      multi_grid: True
+      zero_init_residual: True
+      replace_stride_with_dilation: [False, True, True]  #layer0...1 is fixed, layer2...4
   decoder:
-    type: pyseg.models.decoder_contrast.dec_unet_contrast
+    type: pyseg.models.decoder_contrast.dec_deeplabv3_contrast
     kwargs:
-      inner_planes: 320
-      queue_len: 308
+      inner_planes: 256
+      dilations: [12, 24, 36]
+      queue_len: 705
       

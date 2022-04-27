@@ -27,6 +27,7 @@ trainer: # Required.
   epochs: 100
   start_epochs: 0
   eval_on: True
+  metric: 'mDice'
   optimizer:
     type: SGD
     kwargs:
@@ -39,13 +40,13 @@ trainer: # Required.
       power: 0.9
 
 saver:
-  snapshot_dir: checkpoints/unetresnext101_0409_zeros
+  snapshot_dir: checkpoints/unet_0422_nocontrast
   pretrain: ''
 
 test:
-  model: 'checkpoints/unetresnext101_0409_zeros/best.pth'
-  save_result: True
-  save_dir: outputs/unet_0409
+  model: checkpoints/unet_0422_nocontrast/best.pth
+  save_result: False
+  save_dir: outputs/unet_0416_def
 
 criterion:
   type: ohem
@@ -69,4 +70,6 @@ net: # Required.
     kwargs:
       inner_planes: 320
       queue_len: 308
-      
+      contrast_type: 'default'
+      region_min: 128
+      use_certainty: False

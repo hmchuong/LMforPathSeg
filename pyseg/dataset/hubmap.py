@@ -1,23 +1,20 @@
-import glob
+
 import numpy as np
-import random
-from torch.utils.data import Dataset
 from PIL import Image
-import PIL
+
 import copy
 from torchvision.transforms import transforms
 import os
 from PIL import ImageFile
 import cv2
 import os
-import h5py
+
 import pandas as pd
 import torch.utils.data as data_utils
-import torch
+
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import DataLoader
 
-from . import augmentation as psp_trsform
 import albumentations as A
 import albumentations.pytorch as AP
 
@@ -45,7 +42,9 @@ IDS = ['0486052bb',
 
 class HubmapDataset(data_utils.Dataset):
 
-    def __init__(self, path=None, mode="train", transform=None, cfg=None):
+    def __init__(self, path=None, mode="train", transform=None, cfg=None, return_name=False, whole_images=None,
+                 whole_rles=None,
+                 custom_idx=None):
         super().__init__()
         self.transform = transform
         self.cfg = cfg
@@ -56,10 +55,16 @@ class HubmapDataset(data_utils.Dataset):
         df = pd.read_csv(path + '/data.csv')
         ratio_threshold = 0
 
+        if mode == "hard_mining":
+            images = whole_images
+            rles = whole_rles
+            if custom_idx is not None:
+                images = images[custom_idx]
+                rles = rles[custom_idx]
         if mode == 'train':
             filter_str = "^./images/(" + "|".join(IDS[:10]) + ")_*"
             df = df[df['image'].str.count(filter_str) > 0]
-            df = df[df['ratio'] > ratio_threshold]
+            # df = df[df['ratio'] > ratio_threshold]
             images = df['image'].to_numpy()
             rles = df['mask'].to_numpy()
 
@@ -80,6 +85,9 @@ class HubmapDataset(data_utils.Dataset):
         self.X = images
         self.y = rles
         self.path = path
+        self.return_name = return_name
+        self.whole_images = images
+        self.whole_rles = rles
 
         print('Loaded {} dataset with {} samples'.format(mode, len(self.X)))
         print("# " * 50)
@@ -91,15 +99,18 @@ class HubmapDataset(data_utils.Dataset):
         image = Image.open(path_dir + '/' + self.X[idx])
         mask = cv2.imread(path_dir + '/' + self.y[idx], cv2.IMREAD_GRAYSCALE)
         image = np.array(image)
-        mask = (mask > 0).astype(int)
+        mask = (mask > 128).astype(int)
 
-        transformed = self.transform(image=image, mask=mask)
-        image = transformed["image"]
-        mask = transformed["mask"]
-        image = image.squeeze(0)
-        mask = mask.squeeze()
+        if self.transform:
+            transformed = self.transform(image=image, mask=mask)
+            image = transformed["image"]
+            mask = transformed["mask"]
+            image = image.squeeze(0)
+            mask = mask.squeeze()
         # logger.info(mask.sum() / (mask.shape[0] * mask.shape[1]))
-        return image, mask
+        if self.return_name:
+            return image, mask, self.X[idx].split('/')[-1]
+        return image, mask, idx
 
     def __len__(self):
         return len(self.X)
@@ -135,7 +146,7 @@ def build_hubmaploader(split, all_cfg):
     batch_size = cfg.get('batch_size', 1)
     # build transform
     trs_form = build_transfrom(cfg)
-    dset = HubmapDataset(cfg['data_root'], split, trs_form, cfg)
+    dset = HubmapDataset(cfg['data_root'], split, trs_form, cfg, return_name=(split=='test'))
 
     num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
     distributed = num_gpus > 1
@@ -149,5 +160,26 @@ def build_hubmaploader(split, all_cfg):
         
         loader = DataLoader(dset, batch_size=batch_size if (split == 'train') else 1, num_workers=workers if (split == 'train') else 1, shuffle=(split == 'train'))
     return loader
+
+
+if __name__ == "__main__":
+    data_root = "/fs/class-projects/spring2022/cmsc828l/c828lg001/hubmap_patches"
+    split = "train"
+
+    dset = HubmapDataset(data_root, split, None, None, return_name=False)
+    areas = []
+    from skimage import measure
+    for i, (_, label) in enumerate(dset):
+        regions = measure.label(label)
+        H, W = label.shape
+        for label_num in np.unique(regions):
+            if label_num == 0: continue
+            area = (regions == label_num).sum()
+            # area /= ( H * W)
+            areas += [area]
+        print("Done", i)
+    import pdb; pdb.set_trace() 
+
+
 
     

@@ -5,11 +5,18 @@ import numpy as np
 import scipy.ndimage as nd
 
 
-def get_criterion(cfg):
+def get_criterion(cfg, bce=False):
     cfg_criterion = cfg['criterion']
     aux_weight = cfg['net']['aux_loss']['loss_weight'] if cfg['net'].get('aux_loss', False) else 0
     ignore_index = cfg['dataset']['ignore_label']
-    
+
+    # Start: new BCE loss update
+    if bce:
+        bce_weight = cfg['net']['bce_loss']['loss_weight'] if cfg['net'].get('bce_loss', False) else 0
+        criterion = BCELoss(aux_weight=bce_weight)
+        return criterion
+    # End: new BCE loss update
+
     if cfg_criterion['type'] == 'ohem':
         criterion = CriterionOhem(aux_weight, ignore_index=ignore_index,
                                   **cfg_criterion['kwargs'])
@@ -28,8 +35,7 @@ class Criterion(nn.Module):
             self._criterion = nn.CrossEntropyLoss(ignore_index=ignore_index)
         else:
             weights = torch.FloatTensor(
-                [0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0,
-                1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0]).cuda()
+                [0.1, 1.0]).cuda()
             self._criterion = nn.CrossEntropyLoss(ignore_index=ignore_index)
             self._criterion1 = nn.CrossEntropyLoss(ignore_index=ignore_index, weight=weights)
 
@@ -57,8 +63,10 @@ class CriterionOhem(nn.Module):
     def __init__(self, aux_weight, thresh=0.7, min_kept=100000,  ignore_index=255, use_weight=False):
         super(CriterionOhem, self).__init__()
         self._aux_weight = aux_weight
-        self._criterion1 = OhemCrossEntropy2dTensor(ignore_index, thresh, min_kept,use_weight)
+        self._criterion1 = OhemCrossEntropy2dTensor(ignore_index, thresh, min_kept, use_weight)
         self._criterion2 = OhemCrossEntropy2dTensor(ignore_index, thresh, min_kept)
+        # self._criterion1 = OhemCrossEntropy(ignore_label=ignore_index, thres=thresh, min_kept=min_kept)
+        # self._criterion2 = OhemCrossEntropy(ignore_label=ignore_index, thres=thresh, min_kept=min_kept)
 
     def forward(self, preds, target):
         h, w = target.size(1), target.size(2)
@@ -72,6 +80,7 @@ class CriterionOhem(nn.Module):
             loss1 = self._criterion1(main_pred, target)
             loss2 = self._criterion2(aux_pred, target)
             # import pdb; pdb.set_trace()
+            # print(loss1, loss2)
             loss = loss1 + self._aux_weight * loss2
         else:
             preds = preds[0]
@@ -176,17 +185,15 @@ class OhemCrossEntropy2dTensor(nn.Module):
         self.min_kept = int(min_kept)
         if use_weight:
             weight = torch.FloatTensor(
-                [0.8373, 0.918, 0.866, 1.0345, 1.0166, 0.9969, 0.9754, 1.0489,
-                 0.8786, 1.0023, 0.9539, 0.9843, 1.1116, 0.9037, 1.0865, 1.0955,
-                 1.0865, 1.1529, 1.0507]).cuda()
+                [0.2, 2.0]).cuda()
             #weight = torch.FloatTensor(
             #    [0.4762, 0.5, 0.4762, 1.4286, 1.1111, 0.4762, 0.8333, 0.5, 0.5, 0.8333, 0.5263, 0.5882,
             #    1.4286, 0.5, 3.3333,5.0, 10.0, 2.5, 0.8333]).cuda()
-            self.criterion = torch.nn.CrossEntropyLoss(reduction="elementwise_mean",
+            self.criterion = torch.nn.CrossEntropyLoss(reduction="mean",
                                                        weight=weight,
                                                        ignore_index=ignore_index)
         else:
-            self.criterion = torch.nn.CrossEntropyLoss(reduction="elementwise_mean",
+            self.criterion = torch.nn.CrossEntropyLoss(reduction="mean",
                                                        ignore_index=ignore_index)
 
     def forward(self, pred, target):
@@ -271,3 +278,15 @@ class OhemCrossEntropy(nn.Module):
         pixel_losses = pixel_losses[mask][ind]
         pixel_losses = pixel_losses[pred < threshold]
         return pixel_losses.mean()
+
+# Start: new BCE loss update
+class BCELoss(nn.Module):
+    def __init__(self, aux_weight):
+        super(BCELoss, self).__init__()
+        self._aux_weight = aux_weight
+        self.criterion = nn.BCEWithLogitsLoss()
+    def forward(self, prediction, label):
+        loss = self.criterion(prediction, label) * self._aux_weight
+        return loss
+
+# End: new BCE loss update

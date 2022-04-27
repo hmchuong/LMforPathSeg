@@ -19,6 +19,12 @@ experiments/*/checkpoints/
 *slurm_*
 **/log_*.txt
 *.pth
+*.csv
+**/checkpoints
 *.out
-*.err
 experiments/camelyon/config_plot*.yaml
+**/*.txt
+**/*.csv
+**/*.tsv
+**/*.pbtxt
+**/events.*
