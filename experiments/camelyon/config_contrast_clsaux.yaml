@@ -9,7 +9,7 @@ dataset: # Required.
       size: [384, 384]
     rand_rotation: [-90, 90]
     flip: True
-    bin_ratio: [1, 1, 1, 2]
+    bin_ratio: [0, 1, 1, 2]
   val:
     data_root: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16
     data_list: /fs/class-projects/spring2022/cmsc828l/c828lg001/camelyon16/data.csv
