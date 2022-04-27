@@ -53,7 +53,7 @@ def main():
 
     # logger.info(model)
 
-    testloader = get_loader(cfg, splits=['val'])
+    testloader = get_loader(cfg, splits=['test'])
 
     # Start to test the model
     prec = test(model, testloader)

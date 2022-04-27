@@ -1,0 +1,35 @@
+.vscode
+__pycache__/
+*.py[co]
+data/
+log/
+output/
+pretrained_models
+scripts/
+drive
+*.tar
+detail-api/
+data/list
+*_log.txt
+experiments/*/slurm_*
+experiments/*/log_*
+experiments/*/checkpoints/
+*.jpg
+./experiments/camelyon/getGPU.sh
+*slurm_*
+**/log_*.txt
+*.pth
+*.csv
+**/checkpoints
+*.out
+<<<<<<< HEAD
+*.err
+experiments/camelyon/config_plot*.yaml
+=======
+experiments/camelyon/config_plot*.yaml
+**/*.txt
+**/*.csv
+**/*.tsv
+**/*.pbtxt
+**/events.*
+>>>>>>> a5b27b77b9faad6ac54dd964a7ae1bbdabda6bd4
