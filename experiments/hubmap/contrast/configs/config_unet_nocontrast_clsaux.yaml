@@ -73,7 +73,7 @@ net: # Required.
     type: pyseg.models.decoder_contrast.dec_unet_contrast
     kwargs:
       inner_planes: 320
-      queue_len: 705
+      queue_len: 308
       contrast_type: 'default'
       region_min: 128
       use_certainty: False

@@ -40,15 +40,15 @@ trainer: # Required.
       power: 0.9
 
 saver:
-  snapshot_dir: checkpoints/dlv3_contrast_clsaux_0427
+  snapshot_dir: checkpoints/dlv3_clsaux_0427
   pretrain: ''
 
 test:
-  model: checkpoints/dlv3_contrast_clsaux_0427/best.pth
+  model: checkpoints/dlv3_clsaux_0427/best.pth
   
 criterion:
   type: ohem
-  contrast_weight: 0.1
+  contrast_weight: 0.0
   kwargs:
     thresh: 0.7
     min_kept: 100000

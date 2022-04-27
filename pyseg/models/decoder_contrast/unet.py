@@ -6,6 +6,7 @@ from ..base import  conv1x1, conv3x3
 from .contrast import dec_contrast
 
 def init_weight(m):
+    return
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
         nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='relu')
